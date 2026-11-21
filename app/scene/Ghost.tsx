@@ -133,8 +133,18 @@ export function Ghost({
 
     // Phasing: the sheet empties to a faint outline, as the dashed ghost does in the app.
     sheet.current.opacity = 1 - s.phase * 0.85;
-    sheet.current.transparent = s.phase > 0.01;
-    sheet.current.depthWrite = s.phase < 0.5;
+    const clear = s.phase > 0.01;
+    if (sheet.current.transparent !== clear) {
+      sheet.current.transparent = clear;
+      // three.js compiles opacity out of an opaque material, so the shader must change with the flag.
+      sheet.current.needsUpdate = true;
+    }
+    // An outline passes through things: it shows over the wall or the stone it is in, eyes and all.
+    const solid = s.phase < 0.5;
+    sheet.current.depthWrite = solid;
+    sheet.current.depthTest = solid;
+    eyes.current.renderOrder = solid ? 0 : 1;
+    eyes.current.children.forEach((eye) => (((eye as THREE.Mesh).material as THREE.Material).depthTest = solid));
     aura.current.opacity = 0.1 * (1 - s.phase * 0.7);
 
     // Blink now and then; look toward the motion.

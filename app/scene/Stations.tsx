@@ -195,6 +195,8 @@ export function WallStation() {
 
 const NAME = "EXAMPLE.ORG";
 const NOISE = "#%&*@!?$#%&";
+/** The height of the gantry's beam, and of the arm on it. */
+const ARM_Y = 5.5;
 
 /**
  * The checkpoint (CheckpointScene.kt). A board over a gantry; the ghost carries a sealed name through it. The stamp
@@ -207,7 +209,8 @@ export function CheckpointStation() {
   const x0 = station("checkpoint");
   const ghost = useGhostState({ position: [x0 - 6, 1, 0.6] });
   const stamp = useRef<THREE.Group>(null!);
-  const mark = useRef<THREE.MeshBasicMaterial>(null!);
+  const shaft = useRef<THREE.Mesh>(null!);
+  const mark =useRef<THREE.MeshBasicMaterial>(null!);
   const stampLight = useRef<THREE.PointLight>(null!);
   const board = useRef<{ text: string } | null>(null);
   const shown = useRef("");
@@ -219,8 +222,13 @@ export function CheckpointStation() {
     g.position.set(mix(x0 - 6, x0 + 6, walk), 1, 0.6);
     g.lag = Math.sin(walk * Math.PI) * 0.7;
     const down = smoothstep(0.38, 0.46, p) * (1 - smoothstep(0.56, 0.64, p));
-    stamp.current.position.y = mix(4.4, 0.35, down);
-    g.phase = down > 0.2 && Math.abs(g.position.x - x0) < 1.6 ? 1 : 0;
+    stamp.current.position.y = mix(4.4, 0.03, down);
+    // The shaft runs from the block up to the arm of the gantry, whatever the height of the block.
+    const shaftLength = ARM_Y - 0.15 - (stamp.current.position.y + 0.4);
+    shaft.current.scale.y = shaftLength;
+    shaft.current.position.y = 0.4 + shaftLength / 2;
+    // The ghost is an outline from before the block reaches it until it is clear of the block (2.2 apart).
+    g.phase = smoothstep(0, 0.12, down) * (1 - smoothstep(2.2, 2.8, Math.abs(g.position.x - x0)));
     mark.current.opacity = smoothstep(0.45, 0.5, p) * 0.85;
     stampLight.current.intensity = 4 + down * 30;
     // Under the gantry the name is noise: the board shows what the censor reads.
@@ -242,6 +250,11 @@ export function CheckpointStation() {
       ))}
       <mesh position={[x0, 5.5, -0.4]}>
         <boxGeometry args={[4.4, 0.3, 0.3]} />
+        <meshStandardMaterial color={palette.ink} roughness={0.55} metalness={0.35} />
+      </mesh>
+      {/* The arm that holds the stamp out over the ghost's path. */}
+      <mesh position={[x0, ARM_Y, 0.1]}>
+        <boxGeometry args={[0.3, 0.3, 1.3]} />
         <meshStandardMaterial color={palette.ink} roughness={0.55} metalness={0.35} />
       </mesh>
       {/* The split-flap board. */}
@@ -266,9 +279,9 @@ export function CheckpointStation() {
           <boxGeometry args={[1.8, 0.4, 1.2]} />
           <meshBasicMaterial color={palette.dangerGlow} toneMapped={false} />
         </mesh>
-        <pointLight ref={stampLight} position={[0, -0.3, 0.4]} color={palette.danger} distance={7} decay={1.6} />
-        <mesh position={[0, 1.4, 0]}>
-          <cylinderGeometry args={[0.1, 0.1, 2.2, 8]} />
+        <pointLight ref={stampLight} position={[0, 0.5, 0.9]} color={palette.danger} distance={7} decay={1.6} />
+        <mesh ref={shaft}>
+          <cylinderGeometry args={[0.1, 0.1, 1, 8]} />
           <meshStandardMaterial color={palette.ink} roughness={0.55} metalness={0.35} />
         </mesh>
       </group>
@@ -321,10 +334,12 @@ export function TroubleStation() {
 
   useFrame((frame) => {
     const p = local(chapter.current, at("trouble"));
-    const reach = smoothstep(0.08, 0.7, p) * (posts.length - 0.5);
+    const gx = mix(x0 - 6, posts[BREAK]! - 0.6, smoothstep(0.08, 0.7, p));
+    // A lamp shows what its post carries as the ghost comes up to it with the lens.
+    const tested = (i: number) => (i <= BREAK ? smoothstep(posts[i]! - 1.6, posts[i]! - 0.6, gx) : 0);
     lamps.current.forEach((m, i) => {
       if (!m) return;
-      let on = smoothstep(i, i + 0.4, reach) * (i <= BREAK ? 1 : 0);
+      let on = tested(i);
       // The reader can test the line before the ghost does: a lamp under the pointer shows what it carries.
       // Past the break nothing arrives, so those lamps stay dark.
       if (pointer.idle < 4 && i <= BREAK) {
@@ -333,12 +348,12 @@ export function TroubleStation() {
       m.color.copy(palette.ink).lerp(i === BREAK ? palette.dangerGlow : palette.signalGlow, on);
     });
     // One signal light rides the last lit lamp; the break has its own red light.
-    const last = Math.min(BREAK - 1, Math.max(0, Math.floor(reach)));
+    let last = 0;
+    for (let i = 1; i < BREAK; i++) if (tested(i) > 0.5) last = i;
     signalLight.current.position.set(posts[last]!, 2.9, 0.4);
-    signalLight.current.intensity = 26 * smoothstep(0, 0.4, reach);
-    dangerLight.current.intensity = 34 * smoothstep(BREAK, BREAK + 0.4, reach);
+    signalLight.current.intensity = 26 * tested(0);
+    dangerLight.current.intensity = 34 * tested(BREAK);
     const g = ghost.current;
-    const gx = mix(x0 - 6, posts[BREAK]! - 0.6, smoothstep(0.08, 0.7, p));
     g.lag = gx < posts[BREAK]! - 0.7 ? 0.5 : 0;
     g.position.set(gx, 3.6, 0.8);
   });
