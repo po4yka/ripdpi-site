@@ -12,10 +12,10 @@ import { Fence, Grass, Ground, Mist, MOON_DIR, Sky } from "./Scenery";
 import { backOff, shotAt } from "./shots";
 import { CheckpointStation, ConnectStation, NightStation, RipStation, TroubleStation, WallStation } from "./Stations";
 
-const lerpShot = (c: number) => {
+const lerpShot = (c: number, aspect: number) => {
   const i = Math.min(CHAPTERS.length - 1, Math.max(0, Math.floor(c)));
-  const a = shotAt(i);
-  const b = shotAt(i + 1);
+  const a = shotAt(i, aspect);
+  const b = shotAt(i + 1, aspect);
   const p = c - i;
   // Hold on the station for most of the chapter, with a slow push in; then travel to the next one.
   const t = smoothstep(0.6, 1, p);
@@ -41,11 +41,12 @@ function Director({ animate, focus }: { animate: boolean; focus: { current: Dept
     const target = chapterPosition(story.progress);
     chapter.current = animate ? THREE.MathUtils.damp(chapter.current, target, 4, delta) : target;
 
-    const shot = lerpShot(chapter.current);
+    const aspect = state.size.width / state.size.height;
+    const shot = lerpShot(chapter.current, aspect);
     const cam = state.camera;
     const px = animate ? state.pointer.x * 0.5 : 0;
     const py = animate ? state.pointer.y * 0.25 : 0;
-    const far = backOff(state.size.width / state.size.height);
+    const far = backOff(aspect);
     // A slow breath of the camera keeps the frame alive while the reader stops scrolling.
     const sway = animate ? Math.sin(clock.current * 0.25) * 0.15 : 0;
     // Under reduced motion a frame is drawn only on scroll, so the camera goes straight to its place instead of

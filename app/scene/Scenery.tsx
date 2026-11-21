@@ -12,7 +12,7 @@ export const MOON_DIR = new THREE.Vector3(0.42, 0.36, -0.83).normalize();
 
 /** The sky colour along a view direction: the horizon tone low, the night above. Shared by the dome and the moon. */
 function skyShare(y: number): number {
-  return smoothstep(-0.05, 0.55, y);
+  return smoothstep(-0.05, 0.4, y);
 }
 
 /**
@@ -31,7 +31,7 @@ export function Sky() {
         uniforms: { top: { value: palette.sky }, bottom: { value: palette.horizon } },
         vertexShader: "varying vec3 vDir; void main() { vDir = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }",
         fragmentShader:
-          "uniform vec3 top; uniform vec3 bottom; varying vec3 vDir; void main() { float s = smoothstep(-0.05, 0.55, vDir.y); gl_FragColor = vec4(mix(bottom, top, s), 1.0);\n#include <colorspace_fragment>\n}",
+          "uniform vec3 top; uniform vec3 bottom; varying vec3 vDir; void main() { float s = smoothstep(-0.05, 0.4, vDir.y); gl_FragColor = vec4(mix(bottom, top, s), 1.0);\n#include <colorspace_fragment>\n}",
       }),
     [palette],
   );
@@ -238,8 +238,8 @@ export function Mist() {
   useEffect(() => () => texture.dispose(), [texture]);
   const layers = useMemo(
     () => [
-      { z: -5, y: 1.2, h: 3.5, o: 0.22, speed: 0.004 },
-      { z: -1.5, y: 0.5, h: 1.8, o: 0.14, speed: 0.007 },
+      { z: -5, y: 1.2, h: 3.5, o: 0.1, speed: 0.004 },
+      { z: -1.5, y: 0.5, h: 1.8, o: 0.09, speed: 0.007 },
       { z: 3.5, y: 0.25, h: 1.2, o: 0.08, speed: 0.01 },
     ],
     [],

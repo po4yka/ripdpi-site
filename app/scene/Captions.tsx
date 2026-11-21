@@ -19,12 +19,16 @@ export function Captions() {
   const fov = useThree((s) => (s.camera as THREE.PerspectiveCamera).fov);
   const texts = useRef<({ fillOpacity: number; position: THREE.Vector3; visible: boolean } | null)[]>([]);
   const aspect = size.width / size.height;
-  const layout = CHAPTERS.map((_, i) => {
-    const shot = shotAt(i);
+  const layout = CHAPTERS.map((ch, i) => {
+    const shot = shotAt(i, aspect);
     const distance = shot.z * backOff(aspect) - DEPTH;
     const width = 2 * distance * Math.tan(THREE.MathUtils.degToRad(fov / 2)) * aspect;
     const height = width / aspect;
-    return { x: shot.lookX - width * 0.43, y: shot.lookY + height * (shot.caption ?? 0.27), width, fontSize: Math.min(height * 0.17, width * 0.12) };
+    const maxWidth = width * (shot.captionWidth ?? 0.82);
+    // A narrow caption shrinks until its longest word fits on one line (a glyph of this face is about 0.56 em wide).
+    const longest = Math.max(...ch.caption.split(" ").map((w) => w.length));
+    const fontSize = Math.min(height * 0.17, width * 0.12, maxWidth / (longest * 0.56));
+    return { x: shot.lookX - width * 0.43, y: shot.lookY + height * (shot.caption ?? 0.27), maxWidth, fontSize };
   });
 
   useFrame(() => {
@@ -43,14 +47,14 @@ export function Captions() {
   return (
     <group userData={{ noShadow: true }}>
       {CHAPTERS.map((ch, i) => {
-        const { x, y, width, fontSize } = layout[i]!;
+        const { x, y, maxWidth, fontSize } = layout[i]!;
         return (
           <Text
             key={ch.id}
             ref={(t: { fillOpacity: number; position: THREE.Vector3; visible: boolean } | null) => void (texts.current[i] = t)}
             font={FONT}
             fontSize={fontSize}
-            maxWidth={width * 0.82}
+            maxWidth={maxWidth}
             lineHeight={0.92}
             letterSpacing={-0.045}
             position={[x, y, DEPTH]}

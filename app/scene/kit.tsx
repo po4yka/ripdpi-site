@@ -52,7 +52,9 @@ export function makePalette(): Palette {
     mid: css("--muted-foreground"),
     ground: tone(0.1),
     sky: night.clone(),
-    horizon: tone(0.16),
+    // The shares mix in linear light, so a small share is already a clear step: the horizon is a dim glow under a
+    // dark sky, not a grey band. The fog takes the same tone.
+    horizon: tone(0.03),
     sheet: nightLight.clone(),
     eye: night.clone(),
     stone: tone(0.42),
