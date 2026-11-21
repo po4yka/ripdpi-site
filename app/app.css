@@ -58,8 +58,27 @@
   }
 }
 
-/* Without WebGL the scene layer shows the app icon: the ghost in the tombstone. */
-.story-fallback {
-  background: url("/favicon.svg") center 62% / min(46vh, 70vw) no-repeat;
+/* Until the scene has a frame, and without WebGL, the scene layer shows the app mark: the ghost in the tombstone.
+   Its lines wait undrawn for the page to draw them on. */
+.story-mark {
+  position: absolute;
+  top: 62%;
+  left: 50%;
+  width: min(46vh, 70vw);
+  translate: -50% -62%;
   opacity: 0.9;
+}
+.story-mark path {
+  fill: currentColor;
+  fill-opacity: 0;
+  stroke: currentColor;
+  stroke-width: 5;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+}
+@media (prefers-reduced-motion: reduce) {
+  .story-mark path {
+    fill-opacity: 1;
+    stroke: none;
+  }
 }
