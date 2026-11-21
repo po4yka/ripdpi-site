@@ -1,0 +1,17 @@
+# RIPDPI
+
+> RIPDPI is an Android network-path diagnostics and optimization toolkit. It measures why a target fails or degrades on a network, applies configurable packet strategies on the device, and can connect through relay servers the user controls.
+
+- Platform: Android 8.1 and later. The core path needs no root.
+- Modes: VPN mode (Android VpnService with a local bridge on the device) and proxy mode (a SOCKS5 proxy on localhost).
+- Encrypted DNS: DoH, DoT, DNSCrypt and DoQ.
+- Privacy: normal operation does not capture packets, keep traffic payloads or record TLS secrets.
+- Licence: AGPL-3.0-only, or a commercial licence from the author.
+- Status: in active development; breaking changes are possible.
+- The project's own relay service is invite-only.
+
+## Links
+
+- [Website](https://ripdpi.dev/): the story of the app and its common questions
+- [Source code](https://github.com/po4yka/RIPDPI): the repository and its README
+- [Download](https://github.com/po4yka/RIPDPI/releases/latest): the latest release for Android

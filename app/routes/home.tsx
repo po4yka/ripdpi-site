@@ -5,6 +5,8 @@ import { lazy, Suspense, useRef, useState } from "react";
 
 import { useHydrated, useReducedMotion, useWebGL2 } from "~/lib/environment";
 import { CHAPTERS, RELEASES_URL, REPO_URL, type Chapter } from "~/story/chapters";
+import { Details } from "~/story/Details";
+import { FAQ } from "~/story/content";
 import { Mark } from "~/story/Mark";
 import { chapterPosition, chapterShown, setStoryProgress, smoothstep } from "~/story/progress";
 
@@ -27,6 +29,37 @@ export function meta() {
     { property: "og:title", content: TITLE },
     { property: "og:description", content: DESCRIPTION },
     { property: "og:url", content: `${SITE}/` },
+    { property: "og:image", content: `${SITE}/og.jpg` },
+    { property: "og:image:width", content: "1200" },
+    { property: "og:image:height", content: "630" },
+    { name: "twitter:card", content: "summary_large_image" },
+    {
+      "script:ld+json": {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "SoftwareApplication",
+            name: "RIPDPI",
+            description: DESCRIPTION,
+            url: `${SITE}/`,
+            image: `${SITE}/og.jpg`,
+            operatingSystem: "Android 8.1+",
+            applicationCategory: "UtilitiesApplication",
+            downloadUrl: RELEASES_URL,
+            sameAs: REPO_URL,
+            license: "https://www.gnu.org/licenses/agpl-3.0.html",
+          },
+          {
+            "@type": "FAQPage",
+            mainEntity: FAQ.map((item) => ({
+              "@type": "Question",
+              name: item.q,
+              acceptedAnswer: { "@type": "Answer", text: item.a },
+            })),
+          },
+        ],
+      },
+    },
   ];
 }
 
@@ -80,6 +113,7 @@ function Caption({ chapter, first, inScene }: { chapter: Chapter; first: boolean
 
 export default function Home() {
   const root = useRef<HTMLDivElement>(null);
+  const storyEl = useRef<HTMLDivElement>(null);
   const hydrated = useHydrated();
   const webgl = useWebGL2();
   const reduced = useReducedMotion();
@@ -92,6 +126,9 @@ export default function Home() {
       const sections = gsap.utils.toArray<HTMLElement>("[data-chapter]");
       const rail = gsap.utils.toArray<HTMLElement>("[data-rail]");
       const cue = root.current?.querySelector<HTMLElement>("[data-cue]");
+      const nav = root.current?.querySelector<HTMLElement>("[data-rail-nav]");
+      const frames = gsap.utils.toArray<HTMLElement>("[data-frame]");
+      const header = root.current?.querySelector<HTMLElement>("[data-header]");
       let current = 0;
       // Every chapter's words fade by the same timing as its 3D caption, from the same story position.
       const apply = (progress: number) => {
@@ -113,12 +150,27 @@ export default function Home() {
         if (cue) cue.style.opacity = String(1 - smoothstep(0, 0.02, progress));
       };
       const trigger = ScrollTrigger.create({
-        trigger: root.current,
+        trigger: storyEl.current,
         start: "top top",
         end: "bottom bottom",
         onUpdate: (self) => apply(self.progress),
       });
       apply(trigger.progress);
+
+      // When the story ends, the scene scrolls away. The fixed words go up with it, and the rail goes out.
+      ScrollTrigger.create({
+        trigger: "[data-details]",
+        start: "top bottom",
+        end: "top top",
+        onUpdate: (self) => {
+          frames.forEach((f) => (f.style.translate = `0 ${(-self.progress * window.innerHeight).toFixed(1)}px`));
+          // Over the plain page the header stands on the night, so the text passes under it, not through it.
+          if (header) header.dataset.solid = String(self.progress > 0.92);
+          if (!nav) return;
+          nav.style.opacity = String(1 - smoothstep(0, 0.3, self.progress));
+          nav.style.visibility = self.progress < 0.3 ? "visible" : "hidden";
+        },
+      });
 
       // To a chapter: just past its start, where its words are in and its scene has all its play ahead.
       const go = (i: number) =>
@@ -133,6 +185,8 @@ export default function Home() {
       // The arrow and page keys step by chapter: the story is too long to walk in key-sized scrolls.
       const onKey = (e: KeyboardEvent) => {
         if (e.defaultPrevented || e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+        // Under the story the page is plain, and the keys scroll it as usual.
+        if (window.scrollY > trigger.end) return;
         const step = e.key === "ArrowDown" || e.key === "PageDown" ? 1 : e.key === "ArrowUp" || e.key === "PageUp" ? -1 : 0;
         const to = current + step;
         if (!step || to < 0 || to >= CHAPTERS.length) return;
@@ -180,7 +234,10 @@ export default function Home() {
 
   return (
     <div ref={root} className="relative bg-night text-night-light">
-      <header className="fixed inset-x-0 top-0 z-20 mx-auto flex max-w-(--content-max) items-center justify-between px-(--gutter) py-5 font-mono text-xs tracking-[0.14em] uppercase">
+      <header
+        data-header
+        className="fixed inset-x-0 top-0 z-20 mx-auto flex max-w-(--content-max) items-center justify-between px-(--gutter) py-5 font-mono text-xs tracking-[0.14em] uppercase data-[solid=true]:bg-night"
+      >
         <a href="/" className="flex items-center gap-2.5">
           <img src="/favicon.svg" alt="" className="size-5" />
           RIPDPI
@@ -195,7 +252,7 @@ export default function Home() {
       </header>
 
       {/* The rail: one tick for each chapter, the current one in the signal colour. */}
-      <nav aria-label="Chapters" className="fixed top-1/2 right-1 z-20 flex -translate-y-1/2 flex-col sm:right-4">
+      <nav data-rail-nav aria-label="Chapters" className="fixed top-1/2 right-1 z-20 flex -translate-y-1/2 flex-col sm:right-4">
         {CHAPTERS.map((chapter) => (
           <a
             key={chapter.id}
@@ -221,6 +278,7 @@ export default function Home() {
         </div>
       )}
 
+      <div ref={storyEl} className="relative">
       {/* Scene layer: stays on screen for the whole story. Without WebGL it shows the app icon. */}
       <div className="sticky top-0 h-dvh overflow-hidden" aria-hidden="true">
         {webgl && (
@@ -239,12 +297,15 @@ export default function Home() {
       <main className="pointer-events-none relative -mt-[100dvh]">
         {CHAPTERS.map((chapter, i) => (
           <section key={chapter.id} id={chapter.id} data-chapter className="h-[170vh]">
-            <div className={hydrated ? "pointer-events-none fixed inset-0" : "sticky top-0 h-dvh"}>
+            <div data-frame className={hydrated ? "pointer-events-none fixed inset-0" : "sticky top-0 h-dvh"}>
               <Caption chapter={chapter} first={i === 0} inScene={inScene} />
             </div>
           </section>
         ))}
       </main>
+      </div>
+
+      <Details />
     </div>
   );
 }
