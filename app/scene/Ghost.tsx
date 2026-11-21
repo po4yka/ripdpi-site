@@ -2,7 +2,7 @@ import { useFrame } from "@react-three/fiber";
 import { useMemo, useRef } from "react";
 import * as THREE from "three";
 
-import { usePalette, useSceneTime } from "./kit";
+import { pointer, toPointer, usePalette, useSceneTime } from "./kit";
 import { radialTexture } from "./Scenery";
 
 /**
@@ -30,6 +30,8 @@ function sheetOutline(): THREE.Shape {
   return s;
 }
 
+const eyesAt = new THREE.Vector3();
+const gaze = new THREE.Vector2();
 const DEPTH = 0.35;
 const BEVEL = 0.22;
 
@@ -103,7 +105,7 @@ export function Ghost({
   const eyes = useRef<THREE.Group>(null!);
   const crossed = useRef<THREE.Group>(null!);
 
-  useFrame(() => {
+  useFrame((frame, delta) => {
     const s = state.current;
     group.current.visible = s.visible;
     if (!s.visible) return;
@@ -140,7 +142,12 @@ export function Ghost({
     eyes.current.visible = !s.crossed;
     crossed.current.visible = s.crossed;
     eyes.current.scale.set(1, blink, 1);
-    eyes.current.position.x = (s.look || lag) * 0.09;
+    // The eyes go to the reader's pointer while it moves; at rest they look where the ghost goes.
+    const follow = pointer.idle < 4;
+    if (follow) toPointer(frame, eyes.current.getWorldPosition(eyesAt), gaze).multiplyScalar(3).clampScalar(-1, 1);
+    const e = eyes.current.position;
+    e.x = THREE.MathUtils.damp(e.x, (follow ? gaze.x : s.look || lag) * 0.09, 10, delta);
+    e.y = THREE.MathUtils.damp(e.y, 2.2 + (follow ? gaze.y * 0.07 : 0), 10, delta);
   });
 
   const front = DEPTH / 2 + BEVEL + 0.01;

@@ -1,3 +1,4 @@
+import type { RootState } from "@react-three/fiber";
 import { createContext, useContext } from "react";
 import * as THREE from "three";
 
@@ -135,4 +136,18 @@ export function local(c: number, chapter: number): number {
 export function hash(n: number): number {
   const s = Math.sin(n * 127.1) * 43758.5453;
   return s - Math.floor(s);
+}
+
+/**
+ * The reader's pointer, for the props that answer it. `idle` counts the seconds since it last moved: a pointer at
+ * rest, or a touch screen nobody touched, must not hold a prop's attention. Under reduced motion it never moves.
+ */
+export const pointer = { idle: Infinity };
+
+const projected = new THREE.Vector3();
+
+/** From a place in the world to the pointer, on screen: y up, the screen 2 high, x in the same unit. */
+export function toPointer(state: RootState, world: THREE.Vector3, out: THREE.Vector2): THREE.Vector2 {
+  projected.copy(world).project(state.camera);
+  return out.set(((state.pointer.x - projected.x) * state.size.width) / state.size.height, state.pointer.y - projected.y);
 }

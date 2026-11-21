@@ -1,12 +1,12 @@
 import { Line, Text } from "@react-three/drei";
-import { useFrame } from "@react-three/fiber";
+import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import type { Line2 } from "three/addons/lines/Line2.js";
 
 import { CHAPTERS } from "~/story/chapters";
 import { Ghost, Shadow, useGhostState } from "./Ghost";
-import { local, smoothstep, useChapter, usePalette, useSceneTime } from "./kit";
+import { local, pointer, smoothstep, toPointer, useChapter, usePalette, useSceneTime } from "./kit";
 import { AppMark, BrickTower, Globe, Phone } from "./Props";
 import { Crow, FONT, Tomb, TOMB_FRONT, TOMB_H, type CrowState, type TombState } from "./Tomb";
 import { Tree } from "./Scenery";
@@ -108,9 +108,18 @@ export function WallStation() {
     return pts;
   }, [x0]);
 
-  useFrame(() => {
+  const scanner = useMemo(() => new THREE.Vector3(wallX - 0.6, 7.6, 1.2), [wallX]);
+  const aim = useMemo(() => new THREE.Vector2(), []);
+
+  useFrame((frame, delta) => {
     const t = time.current;
-    beam.current.rotation.z = -0.35 + Math.sin(t * 1.4) * 0.22;
+    // The scanner turns to the reader's pointer while it moves, and goes back to its sweep when the pointer rests.
+    let turn = -0.35 + Math.sin(t * 1.4) * 0.22;
+    if (pointer.idle < 3) {
+      toPointer(frame, scanner, aim);
+      turn = THREE.MathUtils.clamp(Math.atan2(aim.x, -aim.y), -1.2, 0.3);
+    }
+    beam.current.rotation.z = THREE.MathUtils.damp(beam.current.rotation.z, turn, 6, delta);
     packets.current.forEach((pk, i) => {
       if (!pk) return;
       const u = (t * 0.28 + i / 3) % 1;
@@ -152,7 +161,7 @@ export function WallStation() {
           <sphereGeometry args={[0.32, 16, 12]} />
           <meshBasicMaterial color={palette.dangerGlow} toneMapped={false} />
         </mesh>
-        <group ref={beam}>
+        <group ref={beam} rotation-z={-0.35}>
           <mesh geometry={beamGeometry} userData={{ noShadow: true }}>
             <meshBasicMaterial
               color={palette.danger}
@@ -287,6 +296,8 @@ export function TroubleStation() {
   const signalLight = useRef<THREE.PointLight>(null!);
   const dangerLight = useRef<THREE.PointLight>(null!);
   const ghost = useGhostState({ position: [x0 - 6, 3.4, 0.8], scale: 0.7 });
+  const lampAt = useMemo(() => new THREE.Vector3(), []);
+  const near = useMemo(() => new THREE.Vector2(), []);
   const cables = useMemo(() => {
     const sag = (a: number, b: number, broken: 0 | 1 | 2) => {
       const pts: [number, number, number][] = [];
@@ -308,12 +319,17 @@ export function TroubleStation() {
     return out;
   }, [x0]); // eslint-disable-line react-hooks/exhaustive-deps -- posts derive from x0
 
-  useFrame(() => {
+  useFrame((frame) => {
     const p = local(chapter.current, at("trouble"));
     const reach = smoothstep(0.08, 0.7, p) * (posts.length - 0.5);
     lamps.current.forEach((m, i) => {
       if (!m) return;
-      const on = smoothstep(i, i + 0.4, reach) * (i <= BREAK ? 1 : 0);
+      let on = smoothstep(i, i + 0.4, reach) * (i <= BREAK ? 1 : 0);
+      // The reader can test the line before the ghost does: a lamp under the pointer shows what it carries.
+      // Past the break nothing arrives, so those lamps stay dark.
+      if (pointer.idle < 4 && i <= BREAK) {
+        on = Math.max(on, 1 - smoothstep(0.08, 0.2, toPointer(frame, lampAt.set(posts[i]!, 2.75, 0), near).length()));
+      }
       m.color.copy(palette.ink).lerp(i === BREAK ? palette.dangerGlow : palette.signalGlow, on);
     });
     // One signal light rides the last lit lamp; the break has its own red light.
@@ -387,12 +403,20 @@ export function ConnectStation() {
   const geometry = useMemo(() => new THREE.TubeGeometry(curve, 120, 0.42, 16, false), [curve]);
   const riders = [0, 1, 2, 3].map(() => useGhostState({ position: [0, 0, 0], scale: 0.32 })); // eslint-disable-line react-hooks/rules-of-hooks -- fixed count
   const presser = useGhostState({ position: [x0 - 7.2, 0.9, 1.4] });
+  const spark = useRef<THREE.Mesh>(null!);
+  const tapped = useRef(-Infinity);
+  // Under reduced motion the scene's time stands still, so a tap would leave its spark hanging.
+  const animate = useThree((s) => s.frameloop === "always");
 
   useFrame(() => {
     const p = local(chapter.current, at("connect"));
     const pressed = smoothstep(0.08, 0.16, p);
-    button.current.color.copy(palette.mid).lerp(palette.signalGlow, pressed);
     const grown = smoothstep(0.16, 0.5, p);
+    // A tap on the device lights its button and sends one bright packet as far as the tunnel has grown.
+    const sent = (time.current - tapped.current) / 1.8;
+    button.current.color.copy(palette.mid).lerp(palette.signalGlow, Math.max(pressed, 1 - sent));
+    spark.current.visible = sent < Math.min(1, grown);
+    if (spark.current.visible) spark.current.position.copy(curve.getPointAt(sent));
     geometry.setDrawRange(0, Math.floor((geometry.index?.count ?? 0) * grown));
     tube.current.visible = grown > 0.01;
     lights.current.forEach((l, i) => l && (l.intensity = (i === 0 ? pressed : smoothstep(i * 0.3, i * 0.3 + 0.3, grown)) * 22));
@@ -411,16 +435,26 @@ export function ConnectStation() {
 
   return (
     <group>
-      <Phone x={x0 - 5} h={3.4}>
-        <mesh position={[0, 0.25, 0]}>
-          <ringGeometry args={[0.38, 0.55, 32]} />
-          <meshBasicMaterial ref={button} color={palette.mid} toneMapped={false} />
-        </mesh>
-        <mesh position={[0, -0.9, 0]}>
-          <planeGeometry args={[0.7, 0.12]} />
-          <meshBasicMaterial color={palette.signalGlow} toneMapped={false} />
-        </mesh>
-      </Phone>
+      <group
+        onClick={animate ? () => void (tapped.current = time.current) : undefined}
+        onPointerOver={animate ? () => void (document.body.style.cursor = "pointer") : undefined}
+        onPointerOut={animate ? () => void (document.body.style.cursor = "") : undefined}
+      >
+        <Phone x={x0 - 5} h={3.4}>
+          <mesh position={[0, 0.25, 0]}>
+            <ringGeometry args={[0.38, 0.55, 32]} />
+            <meshBasicMaterial ref={button} color={palette.mid} toneMapped={false} />
+          </mesh>
+          <mesh position={[0, -0.9, 0]}>
+            <planeGeometry args={[0.7, 0.12]} />
+            <meshBasicMaterial color={palette.signalGlow} toneMapped={false} />
+          </mesh>
+        </Phone>
+      </group>
+      <mesh ref={spark} visible={false} userData={{ noShadow: true }}>
+        <sphereGeometry args={[0.3, 16, 12]} />
+        <meshBasicMaterial color={palette.signalGlow} toneMapped={false} />
+      </mesh>
       <Shadow x={x0 - 5} w={1.4} d={0.5} />
       <mesh ref={tube} geometry={geometry}>
         <meshBasicMaterial color={palette.signalGlow} toneMapped={false} transparent opacity={0.22} depthWrite={false} />

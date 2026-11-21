@@ -8,7 +8,17 @@ import * as THREE from "three";
 import { CHAPTERS } from "~/story/chapters";
 import { chapterPosition, story } from "~/story/progress";
 import { Captions } from "./Captions";
-import { ChapterContext, ClockContext, makePalette, PaletteContext, smoothstep, useChapter, usePalette, useSceneTime } from "./kit";
+import {
+  ChapterContext,
+  ClockContext,
+  makePalette,
+  PaletteContext,
+  pointer,
+  smoothstep,
+  useChapter,
+  usePalette,
+  useSceneTime,
+} from "./kit";
 import { Fence, Grass, Ground, Mist, MOON_DIR, Sky } from "./Scenery";
 import { backOff, shotAt } from "./shots";
 import { CheckpointStation, ConnectStation, NightStation, RipStation, TroubleStation, WallStation } from "./Stations";
@@ -53,6 +63,7 @@ function Director({
   const scene = useThree((s) => s.scene);
   const moon = useRef<THREE.DirectionalLight>(null!);
   const look = useMemo(() => new THREE.Vector3(), []);
+  const lastPointer = useMemo(() => new THREE.Vector2(), []);
 
   useEffect(() => {
     scene.add(moon.current.target);
@@ -68,6 +79,8 @@ function Director({
 
   useFrame((state, delta) => {
     if (animate) clock.current += delta;
+    if (animate) pointer.idle = lastPointer.equals(state.pointer) ? pointer.idle + delta : 0;
+    lastPointer.copy(state.pointer);
     const target = chapterPosition(story.progress);
     chapter.current = animate ? THREE.MathUtils.damp(chapter.current, target, 4, delta) : target;
 

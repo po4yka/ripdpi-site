@@ -140,7 +140,7 @@ export default function Home() {
           </Suspense>
         )}
         {/* The foot of the frame goes back into the night, so the notes read over the grass. */}
-        <div className="absolute inset-x-0 bottom-0 h-[32vh] bg-linear-to-t from-night/80 to-transparent" />
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[32vh] bg-linear-to-t from-night/80 to-transparent" />
       </div>
 
       {/* The sections give the story its scroll length. In the browser their words sit in one fixed frame and
