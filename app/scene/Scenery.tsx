@@ -1,4 +1,4 @@
-import { useFrame } from "@react-three/fiber";
+import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 
@@ -9,6 +9,12 @@ const TO = 125;
 
 /** Where the moon stands in the sky, as a direction from the viewer. The moonlight comes from it. */
 export const MOON_DIR = new THREE.Vector3(0.42, 0.36, -0.83).normalize();
+
+/**
+ * Where the moon is drawn on a portrait screen, which is too narrow to see `MOON_DIR`: nearer the middle, in the
+ * clear sky between the header and the caption. Only the picture moves; the light keeps its direction.
+ */
+const MOON_DIR_TALL = new THREE.Vector3(0.09, 0.33, -0.94).normalize();
 
 /** The sky colour along a view direction: the horizon tone low, the night above. Shared by the dome and the moon. */
 function skyShare(y: number): number {
@@ -52,8 +58,10 @@ export function Sky() {
   useEffect(() => () => (material.dispose(), stars.dispose(), halo.dispose()), [material, stars, halo]);
   useFrame(({ camera }) => group.current.position.copy(camera.position));
 
-  const moon = MOON_DIR.clone().multiplyScalar(80);
-  const shade = palette.horizon.clone().lerp(palette.sky, skyShare(MOON_DIR.y));
+  const tall = useThree((s) => s.size.width < s.size.height);
+  const dir = tall ? MOON_DIR_TALL : MOON_DIR;
+  const moon = dir.clone().multiplyScalar(80);
+  const shade = palette.horizon.clone().lerp(palette.sky, skyShare(dir.y));
   return (
     <group ref={group} userData={{ noShadow: true }}>
       <mesh material={material} renderOrder={-2}>
@@ -62,7 +70,11 @@ export function Sky() {
       <points geometry={stars} renderOrder={-1}>
         <pointsMaterial color={palette.nightLight} size={1.6} sizeAttenuation={false} fog={false} transparent opacity={0.75} depthWrite={false} />
       </points>
-      <group position={moon} quaternion={new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), MOON_DIR.clone().negate())}>
+      <group
+        position={moon}
+        quaternion={new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), dir.clone().negate())}
+        scale={tall ? 0.6 : 1}
+      >
         <mesh renderOrder={-1} scale={26}>
           <planeGeometry />
           <meshBasicMaterial map={halo} color={palette.nightLight} transparent opacity={0.16} fog={false} depthWrite={false} blending={THREE.AdditiveBlending} />

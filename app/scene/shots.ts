@@ -39,14 +39,31 @@ const WIDE: Record<string, Partial<Shot>> = {
   get: { x: -3.5, lookX: -3.5, z: 22.5 },
 };
 
+/**
+ * What a portrait screen changes: it sees a narrow slice, so each shot turns to the one prop that tells the chapter
+ * and lets the rest of the station run out of frame.
+ */
+const TALL: Record<string, Partial<Shot>> = {
+  // The caption comes down from the moon's place to stand just over the board.
+  checkpoint: { x: -0.1, lookX: -0.7, caption: 0.3 },
+  trouble: { x: -2, lookX: -1 },
+  // The phone, the arc and the wall: the tap and what it opens.
+  connect: { x: -2, lookX: -1.5 },
+  night: { x: 0.5, lookX: 1.5, z: 17 },
+  get: { x: 1.2, lookX: 1.2 },
+};
+
 /** The shot of chapter `i` on a screen of this aspect, in world coordinates. */
 export function shotAt(i: number, aspect: number): Shot {
   const c = CHAPTERS[Math.min(CHAPTERS.length - 1, Math.max(0, i))]!;
-  const s = aspect > 1 ? { ...SHOTS[c.id]!, ...WIDE[c.id] } : SHOTS[c.id]!;
+  const s = { ...SHOTS[c.id]!, ...(aspect > 1 ? WIDE : TALL)[c.id] };
   return { ...s, x: c.station + s.x, lookX: c.station + s.lookX };
 }
 
-/** Portrait screens see less width, so the camera backs off to keep each station in frame. */
+/**
+ * Portrait screens see less width, so the camera backs off, but not so far that the props shrink to the middle of a
+ * tall frame: past the limit the shot crops the station instead (see `TALL`).
+ */
 export function backOff(aspect: number): number {
-  return Math.min(2.3, Math.max(1, 1.5 / aspect));
+  return Math.min(1.7, Math.max(1, 1.5 / aspect));
 }

@@ -1,7 +1,8 @@
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Bloom, DepthOfField, EffectComposer, Noise, ToneMapping, Vignette } from "@react-three/postprocessing";
 import { BlendFunction, ToneMappingMode, type DepthOfFieldEffect } from "postprocessing";
-import { useEffect, useMemo, useRef } from "react";
+import { PerformanceMonitor } from "@react-three/drei";
+import { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 
 import { CHAPTERS } from "~/story/chapters";
@@ -24,7 +25,28 @@ const lerpShot = (c: number, aspect: number) => {
   return { x: mix("x"), y: mix("y"), z: mix("z") * push, lookX: mix("lookX"), lookY: mix("lookY") };
 };
 
-function Director({ animate, focus }: { animate: boolean; focus: { current: DepthOfFieldEffect | null } }) {
+/**
+ * What the renderer spends, from the full picture down. The scene steps down one level each time the frame rate
+ * stays low, and never back up, so the picture does not flicker between levels.
+ */
+const QUALITY = [
+  { dpr: 1.75, samples: 4, depthOfField: true, shadowMap: 2048 },
+  { dpr: 1.5, samples: 2, depthOfField: false, shadowMap: 2048 },
+  { dpr: 1.25, samples: 0, depthOfField: false, shadowMap: 1024 },
+] as const;
+
+/** A touch device starts one level down: its first seconds must not stutter while the monitor makes up its mind. */
+const startLevel = () => (window.matchMedia("(pointer: coarse)").matches ? 1 : 0);
+
+function Director({
+  animate,
+  focus,
+  shadowMap,
+}: {
+  animate: boolean;
+  focus: { current: DepthOfFieldEffect | null };
+  shadowMap: number;
+}) {
   const palette = usePalette();
   const chapter = useChapter();
   const clock = useSceneTime();
@@ -35,6 +57,14 @@ function Director({ animate, focus }: { animate: boolean; focus: { current: Dept
   useEffect(() => {
     scene.add(moon.current.target);
   }, [scene]);
+
+  // three.js keeps the shadow map it first made, so a new size needs the old map gone.
+  useEffect(() => {
+    const shadow = moon.current.shadow;
+    shadow.mapSize.set(shadowMap, shadowMap);
+    shadow.map?.dispose();
+    shadow.map = null;
+  }, [shadowMap]);
 
   useFrame((state, delta) => {
     if (animate) clock.current += delta;
@@ -80,7 +110,6 @@ function Director({ animate, focus }: { animate: boolean; focus: { current: Dept
         color={palette.nightLight}
         intensity={2.6}
         castShadow
-        shadow-mapSize={[2048, 2048]}
         shadow-bias={-0.0004}
         shadow-normalBias={0.04}
         shadow-camera-left={-22}
@@ -146,13 +175,15 @@ export default function StoryScene({ animate, onReady }: { animate: boolean; onR
   const chapter = useRef(chapterPosition(story.progress));
   const clock = useRef(0);
   const focus = useRef<DepthOfFieldEffect | null>(null);
+  const [level, setLevel] = useState(startLevel);
+  const quality = QUALITY[level]!;
 
   return (
     <Canvas
       flat
       shadows="percentage"
       camera={{ position: [1.6, 1.5, 12.5], fov: 42, near: 0.1, far: 200 }}
-      dpr={[1, 1.75]}
+      dpr={[1, quality.dpr]}
       frameloop={animate ? "always" : "demand"}
       gl={{ antialias: false, powerPreference: "high-performance" }}
     >
@@ -161,9 +192,14 @@ export default function StoryScene({ animate, onReady }: { animate: boolean; onR
       <PaletteContext.Provider value={palette}>
         <ChapterContext.Provider value={chapter}>
           <ClockContext.Provider value={clock}>
-            {!animate && <DemandBridge />}
+            {/* Drawing on demand has no frame rate to judge, so only the running scene is watched. */}
+            {animate ? (
+              <PerformanceMonitor onDecline={() => setLevel((l) => Math.min(QUALITY.length - 1, l + 1))} />
+            ) : (
+              <DemandBridge />
+            )}
             <FirstFrame onReady={onReady} />
-            <Director animate={animate} focus={focus} />
+            <Director animate={animate} focus={focus} shadowMap={quality.shadowMap} />
             <ShadowRig />
             <Sky />
             <Ground />
@@ -178,8 +214,12 @@ export default function StoryScene({ animate, onReady }: { animate: boolean; onR
             <ConnectStation />
             <NightStation />
             {/* Only the boosted signal and danger colours exceed 1 before tone mapping, so only they bloom. */}
-            <EffectComposer multisampling={4}>
-              <DepthOfField ref={focus} target={[0, 0, 0]} worldFocusRange={26} bokehScale={1.6} />
+            <EffectComposer multisampling={quality.samples}>
+              {quality.depthOfField ? (
+                <DepthOfField ref={focus} target={[0, 0, 0]} worldFocusRange={26} bokehScale={1.6} />
+              ) : (
+                <></>
+              )}
               <Bloom intensity={1.3} luminanceThreshold={1} luminanceSmoothing={0.25} mipmapBlur />
               <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
               <Vignette offset={0.28} darkness={0.55} />

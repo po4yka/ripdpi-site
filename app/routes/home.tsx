@@ -132,12 +132,12 @@ export default function Home() {
 
       {/* Scene layer: stays on screen for the whole story. Without WebGL it shows the app icon. */}
       <div className="sticky top-0 h-dvh overflow-hidden" aria-hidden="true">
-        {webgl ? (
-          <Suspense fallback={<div className="story-fallback h-full" />}>
+        {/* The icon stays until the scene has drawn a frame: the canvas is empty while its code and shaders load. */}
+        {!inScene && <div className="story-fallback absolute inset-0" />}
+        {webgl && (
+          <Suspense fallback={null}>
             <StoryScene animate={!reduced} onReady={() => setSceneReady(true)} />
           </Suspense>
-        ) : (
-          <div className="story-fallback h-full" />
         )}
         {/* The foot of the frame goes back into the night, so the notes read over the grass. */}
         <div className="absolute inset-x-0 bottom-0 h-[32vh] bg-linear-to-t from-night/80 to-transparent" />
