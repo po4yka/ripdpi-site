@@ -9,6 +9,7 @@ import { CHAPTERS } from "~/story/chapters";
 import { chapterPosition, story } from "~/story/progress";
 import { Captions } from "./Captions";
 import {
+  arc,
   ChapterContext,
   ClockContext,
   makePalette,
@@ -19,7 +20,7 @@ import {
   usePalette,
   useSceneTime,
 } from "./kit";
-import { Fence, Grass, Ground, Mist, MOON_DIR, Sky } from "./Scenery";
+import { Cable, Fence, Grass, Ground, Mist, MOON_DIR, Sky } from "./Scenery";
 import { backOff, shotAt } from "./shots";
 import { CheckpointStation, ConnectStation, NightStation, RipStation, TroubleStation, WallStation } from "./Stations";
 
@@ -62,6 +63,7 @@ function Director({
   const clock = useSceneTime();
   const scene = useThree((s) => s.scene);
   const moon = useRef<THREE.DirectionalLight>(null!);
+  const fill = useRef<THREE.DirectionalLight>(null!);
   const look = useMemo(() => new THREE.Vector3(), []);
   const lastPointer = useMemo(() => new THREE.Vector2(), []);
 
@@ -84,6 +86,16 @@ function Director({
     const target = chapterPosition(story.progress);
     chapter.current = animate ? THREE.MathUtils.damp(chapter.current, target, 4, delta) : target;
 
+    // The censor's red holds from the wall to the break; the tap puts the signal in its place.
+    const c = chapter.current;
+    arc.danger = smoothstep(0.6, 1.1, c) * (1 - smoothstep(3.7, 4.16, c));
+    arc.signal = smoothstep(4.16, 4.5, c);
+    const hue = arc.signal > 0 ? palette.signal : palette.danger;
+    const share = Math.max(arc.danger, arc.signal);
+    arc.tint.copy(palette.nightLight).lerp(hue, 0.5 * share);
+    arc.horizon.copy(palette.horizon).lerp(hue, 0.07 * share);
+    fill.current.color.copy(arc.tint);
+
     const aspect = state.size.width / state.size.height;
     const shot = lerpShot(chapter.current, aspect);
     const cam = state.camera;
@@ -104,6 +116,7 @@ function Director({
     const fog = scene.fog as THREE.Fog | null;
     if (fog) fog.near = cam.position.z + 4;
     if (fog) fog.far = cam.position.z + 60;
+    if (fog) fog.color.copy(arc.horizon);
 
     // The moonlight comes from the moon of the sky dome, and its shadow box follows the camera.
     moon.current.position.copy(look).setY(0).addScaledVector(MOON_DIR, 40);
@@ -117,7 +130,7 @@ function Director({
     <>
       <hemisphereLight args={[palette.nightLight, palette.night, 0.3]} />
       {/* A faint cold fill from the viewer's side, so the faces turned from the moon do not drown. */}
-      <directionalLight position={[-6, 5, 20]} color={palette.nightLight} intensity={0.35} />
+      <directionalLight ref={fill} position={[-6, 5, 20]} color={palette.nightLight} intensity={0.35} />
       <directionalLight
         ref={moon}
         color={palette.nightLight}
@@ -219,6 +232,7 @@ export default function StoryScene({ animate, onReady }: { animate: boolean; onR
             <Grass />
             <Fence />
             <Mist />
+            <Cable />
             <Captions />
             <RipStation />
             <WallStation />

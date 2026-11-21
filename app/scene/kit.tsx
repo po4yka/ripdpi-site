@@ -151,3 +151,10 @@ export function toPointer(state: RootState, world: THREE.Vector3, out: THREE.Vec
   projected.copy(world).project(state.camera);
   return out.set(((state.pointer.x - projected.x) * state.size.width) / state.size.height, state.pointer.y - projected.y);
 }
+
+/**
+ * The light of the story, set by the director for every frame: none at the grave, the danger red from the wall to
+ * the break, the signal from the tap on. `tint` colours the fill light and the mist; `horizon` the sky's foot and
+ * the fog.
+ */
+export const arc = { danger: 0, signal: 0, tint: new THREE.Color(), horizon: new THREE.Color() };

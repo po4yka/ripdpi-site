@@ -2,7 +2,7 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 
-import { hash, noiseTexture, smoothstep, usePalette, useSceneTime } from "./kit";
+import { arc, hash, noiseTexture, smoothstep, usePalette, useSceneTime } from "./kit";
 
 const FROM = -30;
 const TO = 125;
@@ -21,20 +21,54 @@ function skyShare(y: number): number {
   return smoothstep(-0.05, 0.4, y);
 }
 
+/** The shafts of moonlight: which way each falls from the moon (0 is straight down), how wide and how long. */
+const SHAFTS = [
+  { turn: -1.05, w: 7, len: 62 },
+  { turn: -0.72, w: 11, len: 70 },
+  { turn: -0.42, w: 6, len: 58 },
+  { turn: -0.12, w: 9, len: 52 },
+];
+
+/** One shaft: clear at the moon, brightest a little below it, gone at its far end, soft at both sides. */
+function shaftTexture(): THREE.Texture {
+  const canvas = document.createElement("canvas");
+  canvas.width = 64;
+  canvas.height = 256;
+  const g = canvas.getContext("2d")!;
+  const along = g.createLinearGradient(0, 0, 0, 256);
+  along.addColorStop(0, "rgba(255,255,255,0)");
+  along.addColorStop(0.12, "rgba(255,255,255,1)");
+  along.addColorStop(1, "rgba(255,255,255,0)");
+  g.fillStyle = along;
+  g.fillRect(0, 0, 64, 256);
+  const across = g.createLinearGradient(0, 0, 64, 0);
+  across.addColorStop(0, "rgba(255,255,255,0)");
+  across.addColorStop(0.5, "rgba(255,255,255,1)");
+  across.addColorStop(1, "rgba(255,255,255,0)");
+  g.globalCompositeOperation = "destination-in";
+  g.fillStyle = across;
+  g.fillRect(0, 0, 64, 256);
+  return new THREE.CanvasTexture(canvas);
+}
+
 /**
  * The night sky that travels with the camera: a gradient dome, stars and the crescent moon of the app's night scene,
  * with a soft halo.
  */
 export function Sky() {
   const palette = usePalette();
+  const time = useSceneTime();
   const group = useRef<THREE.Group>(null!);
+  const shafts = useRef<(THREE.MeshBasicMaterial | null)[]>([]);
+  const shaft = useMemo(() => shaftTexture(), []);
+  const shaftGeometry = useMemo(() => new THREE.PlaneGeometry().translate(0, -0.5, 0), []);
   const material = useMemo(
     () =>
       new THREE.ShaderMaterial({
         side: THREE.BackSide,
         depthWrite: false,
         fog: false,
-        uniforms: { top: { value: palette.sky }, bottom: { value: palette.horizon } },
+        uniforms: { top: { value: palette.sky }, bottom: { value: arc.horizon } },
         vertexShader: "varying vec3 vDir; void main() { vDir = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }",
         fragmentShader:
           "uniform vec3 top; uniform vec3 bottom; varying vec3 vDir; void main() { float s = smoothstep(-0.05, 0.4, vDir.y); gl_FragColor = vec4(mix(bottom, top, s), 1.0);\n#include <colorspace_fragment>\n}",
@@ -55,8 +89,15 @@ export function Sky() {
     return g;
   }, []);
   const halo = useMemo(() => radialTexture(), []);
-  useEffect(() => () => (material.dispose(), stars.dispose(), halo.dispose()), [material, stars, halo]);
-  useFrame(({ camera }) => group.current.position.copy(camera.position));
+  useEffect(
+    () => () => (material.dispose(), stars.dispose(), halo.dispose(), shaft.dispose(), shaftGeometry.dispose()),
+    [material, stars, halo, shaft, shaftGeometry],
+  );
+  useFrame(({ camera }) => {
+    group.current.position.copy(camera.position);
+    // The shafts breathe, each at its own pace, as thin cloud passes the moon.
+    shafts.current.forEach((m, i) => m && (m.opacity = 0.05 + 0.025 * Math.sin(time.current * (0.21 + i * 0.07) + i * 1.9)));
+  });
 
   const tall = useThree((s) => s.size.width < s.size.height);
   const dir = tall ? MOON_DIR_TALL : MOON_DIR;
@@ -79,6 +120,23 @@ export function Sky() {
           <planeGeometry />
           <meshBasicMaterial map={halo} color={palette.nightLight} transparent opacity={0.16} fog={false} depthWrite={false} blending={THREE.AdditiveBlending} />
         </mesh>
+        {SHAFTS.map((s, i) => (
+          // Each starts clear of the moon's disc, so the dark of the crescent stays dark.
+          <group key={i} rotation-z={s.turn}>
+            <mesh geometry={shaftGeometry} position={[0, -5, -0.02]} scale={[s.w, s.len, 1]} renderOrder={-1}>
+              <meshBasicMaterial
+                ref={(m) => void (shafts.current[i] = m)}
+                map={shaft}
+                color={palette.nightLight}
+                transparent
+                opacity={0.05}
+                fog={false}
+                depthWrite={false}
+                blending={THREE.AdditiveBlending}
+              />
+            </mesh>
+          </group>
+        ))}
         <mesh renderOrder={-1}>
           <circleGeometry args={[4.2, 64]} />
           <meshBasicMaterial color={palette.nightLight.clone().multiplyScalar(1.5)} fog={false} depthWrite={false} toneMapped={false} />
@@ -119,7 +177,7 @@ export function Ground() {
     // Deep toward the camera too: on portrait screens the camera backs off.
     <mesh rotation-x={-Math.PI / 2} position={[(FROM + TO) / 2, 0, 10]} userData={{ noCast: true }}>
       <planeGeometry args={[TO - FROM + 60, 160]} />
-      <meshStandardMaterial color={palette.ground} map={map} bumpMap={map} bumpScale={3} roughness={1} />
+      <meshStandardMaterial color={palette.ground} map={map} bumpMap={map} bumpScale={3} roughness={0.7} />
     </mesh>
   );
 }
@@ -260,6 +318,7 @@ export function Mist() {
   useFrame(() => {
     mats.current.forEach((m, i) => {
       if (!m?.map) return;
+      m.color.copy(arc.tint);
       m.map.offset.x = time.current * layers[i]!.speed;
     });
   });
@@ -279,6 +338,47 @@ export function Mist() {
           />
         </mesh>
       ))}
+    </group>
+  );
+}
+
+const PACKETS = 8;
+const SPAN = 48;
+// Behind the props: the ground in front of them is under the foot of the frame.
+const CABLE_Z = -1.6;
+
+/**
+ * The line of the whole route, on the ground behind the stations. It is dead until the tap; then it carries
+ * the signal, and packets run along it past the camera.
+ */
+export function Cable() {
+  const palette = usePalette();
+  const time = useSceneTime();
+  const line = useRef<THREE.MeshBasicMaterial>(null!);
+  const packets = useRef<THREE.InstancedMesh>(null!);
+  const m = useMemo(() => new THREE.Matrix4(), []);
+  useFrame(({ camera }) => {
+    line.current.color.copy(palette.ink).lerp(palette.signalGlow, arc.signal);
+    packets.current.visible = arc.signal > 0;
+    // The packets keep their places in the world; only the stretch near the camera is drawn.
+    const from = camera.position.x - SPAN / 2;
+    for (let i = 0; i < PACKETS; i++) {
+      const x = time.current * 5 + (i * SPAN) / PACKETS - from;
+      m.makeScale(arc.signal, arc.signal, arc.signal).setPosition(from + (((x % SPAN) + SPAN) % SPAN), 0.2, CABLE_Z);
+      packets.current.setMatrixAt(i, m);
+    }
+    packets.current.instanceMatrix.needsUpdate = true;
+  });
+  return (
+    <group userData={{ noShadow: true }}>
+      <mesh position={[(FROM + TO) / 2, 0.05, CABLE_Z]}>
+        <boxGeometry args={[TO - FROM, 0.09, 0.09]} />
+        <meshBasicMaterial ref={line} color={palette.ink} toneMapped={false} />
+      </mesh>
+      <instancedMesh ref={packets} args={[undefined, undefined, PACKETS]} frustumCulled={false}>
+        <boxGeometry args={[0.5, 0.3, 0.3]} />
+        <meshBasicMaterial color={palette.signalGlow} toneMapped={false} />
+      </instancedMesh>
     </group>
   );
 }
