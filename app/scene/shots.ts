@@ -35,6 +35,8 @@ const WIDE: Record<string, Partial<Shot>> = {
   rip: { caption: 0.4 },
   wall: { captionWidth: 0.38 },
   checkpoint: { x: -2, lookX: -2.6, captionWidth: 0.36 },
+  // The download button stands at the foot of the frame on the left: the stone and the ghost keep to the right of it.
+  get: { x: -3.5, lookX: -3.5, z: 22.5 },
 };
 
 /** The shot of chapter `i` on a screen of this aspect, in world coordinates. */

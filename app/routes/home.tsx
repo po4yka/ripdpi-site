@@ -48,7 +48,7 @@ function Caption({ chapter, first, inScene }: { chapter: Chapter; first: boolean
       </Heading>
       <div data-fade className="mt-auto flex flex-col items-start gap-6">
         {chapter.note && (
-          <p className="max-w-[34ch] border-l border-current/35 pl-4 font-mono text-[13px] leading-relaxed opacity-75 sm:text-sm">
+          <p className="max-w-[34ch] border-l border-current/35 pl-4 font-mono text-[clamp(0.9375rem,1.25vw,1.125rem)] leading-relaxed text-pretty">
             {chapter.note}
           </p>
         )}
@@ -57,14 +57,14 @@ function Caption({ chapter, first, inScene }: { chapter: Chapter; first: boolean
           <div data-interactive className="pointer-events-auto flex flex-col items-start gap-6">
             <a
               href={RELEASES_URL}
-              className="group/cta flex items-center gap-4 bg-signal-night py-4 pr-5 pl-6 font-mono text-sm font-medium tracking-wide text-night uppercase transition-[filter,translate] duration-(--duration-quick) ease-(--ease-standard) hover:brightness-110 active:translate-y-px"
+              className="group/cta flex items-center gap-5 bg-signal-night py-5 pr-7 pl-8 font-mono text-base font-medium tracking-wide text-night uppercase transition-[filter,scale] duration-(--duration-quick) ease-(--ease-standard) hover:brightness-110 active:scale-[0.96] sm:text-lg"
             >
               Download for Android
               <span aria-hidden="true" className="transition-transform duration-(--duration-quick) group-hover/cta:translate-y-0.5">
                 ↓
               </span>
             </a>
-            <p className="font-mono text-xs opacity-60">
+            <p className="font-mono text-sm opacity-80">
               Android 8.1+ · AGPL-3.0 ·{" "}
               <a href={REPO_URL} className="underline decoration-current/40 underline-offset-4 hover:decoration-current">
                 source code
@@ -135,6 +135,8 @@ export default function Home() {
         ) : (
           <div className="story-fallback h-full" />
         )}
+        {/* The foot of the frame goes back into the night, so the notes read over the grass. */}
+        <div className="absolute inset-x-0 bottom-0 h-[32vh] bg-linear-to-t from-night/80 to-transparent" />
       </div>
 
       {/* The sections give the story its scroll length. In the browser their words sit in one fixed frame and
