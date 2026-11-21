@@ -146,7 +146,7 @@ export function WallStation() {
     return pts;
   }, [x0]);
 
-  const scanner = useMemo(() => new THREE.Vector3(wallX - 0.85, 7.9, 1.2), [wallX]);
+  const scanner = useMemo(() => new THREE.Vector3(wallX - 0.7, 7.72, 1.5), [wallX]);
   const aim = useMemo(() => new THREE.Vector2(), []);
 
   useFrame((frame, delta) => {
@@ -210,16 +210,25 @@ export function WallStation() {
       <Shadow x={wallX} w={2.2} d={1.4} />
       {/* The scanner on top of the wall, and its red beam sweeping the ground in front of it. */}
       <group position={scanner}>
-        {/* Its housing sits on the coping; the red lens hangs from the housing's front corner. */}
-        <mesh position={[0.45, 0.12, -0.3]}>
-          <boxGeometry args={[1, 0.44, 0.7]} />
+        {/* An arm out of the coping holds the head in front of the wall. */}
+        <mesh position={[0, 0, -0.3]}>
+          <boxGeometry args={[0.12, 0.12, 0.6]} />
           <meshStandardMaterial color={palette.ink} roughness={0.5} metalness={0.4} />
         </mesh>
-        <mesh>
-          <sphereGeometry args={[0.28, 16, 12]} />
-          <meshBasicMaterial color={palette.dangerGlow} toneMapped={false} />
-        </mesh>
         <group ref={beam} rotation-z={-0.35}>
+          {/* The head turns with the beam: a pill with a hood, and the red lens in its end. */}
+          <mesh position={[0, 0.2, 0]}>
+            <capsuleGeometry args={[0.24, 0.4, 6, 20]} />
+            <meshStandardMaterial color={palette.stone} roughness={0.55} metalness={0.35} />
+          </mesh>
+          <mesh position={[0, -0.16, 0]}>
+            <cylinderGeometry args={[0.27, 0.3, 0.22, 20, 1, true]} />
+            <meshStandardMaterial color={palette.ink} roughness={0.5} metalness={0.4} side={THREE.DoubleSide} />
+          </mesh>
+          <mesh position={[0, -0.14, 0]}>
+            <sphereGeometry args={[0.17, 16, 12]} />
+            <meshBasicMaterial color={palette.dangerGlow} toneMapped={false} />
+          </mesh>
           <mesh ref={cone} geometry={beamGeometry} userData={{ noShadow: true }}>
             <meshBasicMaterial
               color={palette.danger}
@@ -231,7 +240,7 @@ export function WallStation() {
               blending={THREE.AdditiveBlending}
             />
           </mesh>
-          <spotLight ref={spot} color={palette.danger} intensity={260} distance={24} angle={0.24} penumbra={0.5} decay={1.8} />
+          <spotLight ref={spot} color={palette.danger} intensity={260} distance={24} angle={0.2} penumbra={0.35} decay={1.8} />
           <object3D ref={spotTarget} position={[0, -7.6, 0]} />
         </group>
       </group>
@@ -507,7 +516,9 @@ export function ConnectStation() {
   const curve = useMemo(
     () =>
       new THREE.CatmullRomCurve3([
-        new THREE.Vector3(x0 - 5, 3.6, 0),
+        // It leaves the port on the device straight up, then bends toward the wall.
+        new THREE.Vector3(x0 - 5, 3.45, 0),
+        new THREE.Vector3(x0 - 4.8, 4.35, 0),
         new THREE.Vector3(x0 - 2, 5.2, 0),
         new THREE.Vector3(wallX, 4.6, 0),
         new THREE.Vector3(x0 + 5, 4.2, 0),
@@ -515,7 +526,23 @@ export function ConnectStation() {
       ]),
     [x0, wallX],
   );
-  const geometry = useMemo(() => new THREE.TubeGeometry(curve, 120, 0.42, 16, false), [curve]);
+  const geometry = useMemo(() => new THREE.TubeGeometry(curve, 160, 0.42, 24, false), [curve]);
+  // A glass tube: clear where the eye looks through its wall, bright where it looks along it.
+  const glass = useMemo(
+    () =>
+      new THREE.ShaderMaterial({
+        transparent: true,
+        depthWrite: false,
+        toneMapped: false,
+        uniforms: { tint: { value: palette.signalGlow } },
+        vertexShader:
+          "varying vec3 vN; varying vec3 vV; void main() { vec4 mv = modelViewMatrix * vec4(position, 1.0); vN = normalMatrix * normal; vV = -mv.xyz; gl_Position = projectionMatrix * mv; }",
+        fragmentShader:
+          "uniform vec3 tint; varying vec3 vN; varying vec3 vV; void main() { float rim = pow(1.0 - abs(dot(normalize(vN), normalize(vV))), 2.0); gl_FragColor = vec4(tint, mix(0.1, 0.7, rim));\n#include <colorspace_fragment>\n}",
+      }),
+    [palette],
+  );
+  useEffect(() => () => glass.dispose(), [glass]);
   const riders = [0, 1, 2, 3].map(() => useGhostState({ position: [0, 0, 0], scale: 0.32, still: true })); // eslint-disable-line react-hooks/rules-of-hooks -- fixed count
   const presser = useGhostState({ position: [x0 - 7.2, 0.9, 1.4] });
   const spark = useRef<THREE.Mesh>(null!);
@@ -603,9 +630,18 @@ export function ConnectStation() {
         </mesh>
       ))}
       <Shadow x={x0 - 5} w={1.4} d={0.5} />
-      <mesh ref={tube} geometry={geometry}>
-        <meshBasicMaterial color={palette.signalGlow} toneMapped={false} transparent opacity={0.22} depthWrite={false} />
-      </mesh>
+      <mesh ref={tube} geometry={geometry} material={glass} />
+      {/* The port on top of the device that the tunnel comes out of. */}
+      <group position={[x0 - 5, 3.45, 0]}>
+        <mesh position={[0, 0.03, 0]}>
+          <cylinderGeometry args={[0.5, 0.56, 0.14, 24]} />
+          <meshStandardMaterial color={palette.ink} roughness={0.5} metalness={0.4} />
+        </mesh>
+        <mesh position={[0, 0.12, 0]} rotation-x={Math.PI / 2}>
+          <torusGeometry args={[0.46, 0.06, 8, 32]} />
+          <meshStandardMaterial color={palette.ink} roughness={0.5} metalness={0.4} />
+        </mesh>
+      </group>
       <BrickTower x={wallX} h={6} />
       {[0, 0.35, 0.7].map((u, i) => {
         const pt = curve.getPointAt(u);

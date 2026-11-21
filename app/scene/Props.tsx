@@ -42,7 +42,7 @@ export function BrickTower({ x, w = 2.2, h = 7.5, d = 2.2 }: { x: number; w?: nu
     <group position={[x, 0, 0]}>
       <mesh position={[0, h / 2, 0]}>
         <boxGeometry args={[w, h, d]} />
-        <meshStandardMaterial map={texture} bumpMap={texture} bumpScale={6} roughness={0.95} />
+        <meshStandardMaterial map={texture} bumpMap={texture} bumpScale={3} roughness={0.95} />
       </mesh>
       {/* The coping, and the wire along it. */}
       <mesh position={[0, h + 0.11, 0]}>
