@@ -22,6 +22,14 @@ Landing page for the RIPDPI Android app and its invite-only relay service, serve
 
 Vendored skills in `.claude/skills/` (sources and commits in `.claude/skills/SOURCES.md`). Use `threejs-*` for any scene work, `gsap-*` for animation, `make-interfaces-feel-better` for UI detail, and `geo-*` before launch.
 
+Three more skills carry scripts and opinions of their own. The design rules below override them.
+
+- `ui-ux-pro-max`: use its UX, accessibility and interaction rules for reviews. Do not take its palettes, fonts or styles.
+- `pixel2motion`: use it to animate the app mark (`public/favicon.svg`). Play the result with GSAP.
+- `line-art-animation`: use it for 2D SVG drawings of the story, for example on the no-WebGL page. Draw with the night tokens, not ink on paper, and drive the motion with GSAP, not with the skill's `lib/motion.ts` loop.
+
+For a new shader effect, copy the WebGL2 source of one component from https://github.com/DavidHDev/canvas-ui (MIT with Commons Clause: use in the site is permitted, redistribution of the components is not). Take the colours from the CSS tokens and load the component through `React.lazy`.
+
 ## Design rules
 
 - Tokens in `app/styles/tokens.css` come from the RIPDPI app's Kotlin theme (`app/src/main/kotlin/com/poyka/ripdpi/ui/theme`). Change them only to follow the app. Do not copy from the app's `docs/design/rds/colors_and_type.css`: it has drifted from Kotlin.
