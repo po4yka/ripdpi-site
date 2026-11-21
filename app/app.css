@@ -1,0 +1,65 @@
+@import "tailwindcss";
+@import "@fontsource-variable/geist";
+@import "@fontsource-variable/geist-mono";
+@import "./styles/tokens.css";
+
+/* Expose tokens as Tailwind utilities (bg-surface, text-signal, rounded-control, font-mono, ...). */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-surface-lowest: var(--surface-lowest);
+  --color-surface-low: var(--surface-low);
+  --color-surface: var(--surface);
+  --color-surface-high: var(--surface-high);
+  --color-surface-highest: var(--surface-highest);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-outline: var(--outline);
+  --color-border: var(--border);
+  --color-primary: var(--primary);
+  --color-action: var(--action);
+  --color-action-foreground: var(--action-foreground);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-info: var(--info);
+  --color-error: var(--error);
+  --color-signal: var(--signal);
+  --color-danger: var(--danger);
+  --color-night: var(--night);
+  --color-night-light: var(--night-light);
+  --color-signal-night: var(--signal-night);
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+  --radius-control: var(--radius-control);
+  --radius-pill: var(--radius-pill);
+  --radius-hero: var(--radius-hero);
+  --ease-standard: var(--ease-standard);
+  --ease-decelerate: var(--ease-decelerate);
+}
+
+@layer base {
+  html {
+    background: var(--night);
+    color: var(--night-light);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  body {
+    min-height: 100dvh;
+    margin: 0;
+  }
+  :focus-visible {
+    outline: 2px solid var(--signal);
+    outline-offset: 2px;
+  }
+  /* Machine-readable values ship in mono, as in the app. */
+  code, kbd, samp {
+    font-family: var(--font-mono);
+  }
+}
+
+/* Without WebGL the scene layer shows the app icon: the ghost in the tombstone. */
+.story-fallback {
+  background: url("/favicon.svg") center 62% / min(46vh, 70vw) no-repeat;
+  opacity: 0.9;
+}

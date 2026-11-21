@@ -1,0 +1,108 @@
+/*
+  RIPDPI design tokens for the web.
+  Source of truth: RIPDPI app/src/main/kotlin/com/poyka/ripdpi/ui/theme (Color.kt, RipDpiColorSchemes.kt,
+  Type.kt, Spacing.kt, RipDpiMotion.kt), standard contrast. docs/design/rds/colors_and_type.css in the app
+  repo has drifted from Kotlin, so do not copy values from it.
+  The tokens keep both themes through light-dark(), as the app does. The site is the app's night scene, so it
+  uses the dark theme only.
+*/
+:root {
+  color-scheme: dark;
+
+  /* Surfaces (Material scheme roles) */
+  --background: light-dark(#fbf9fa, #131314);
+  --foreground: light-dark(#1b1b1d, #e4e2e3);
+  --surface-lowest: light-dark(#ffffff, #0e0e0f);
+  --surface-low: light-dark(#f5f3f4, #1b1b1d);
+  --surface: light-dark(#f0edee, #1f1f21);
+  --surface-high: light-dark(#eae7e9, #2a2a2b);
+  --surface-highest: light-dark(#e4e2e3, #353536);
+  --muted-foreground: light-dark(#474748, #c8c6c7);
+  --outline: light-dark(#777778, #919092);
+  --border: light-dark(#c8c6c7, #474748);
+  --primary: light-dark(#575f6b, #bfc7d5);
+  /* Ink action: the app's primaryAction (dark mode: full white per DESIGN.md) */
+  --action: light-dark(#1b1b1d, #ffffff);
+  --action-foreground: light-dark(#fbf9fa, #131314);
+
+  /* Semantic tones (Color.kt) */
+  --success: light-dark(#047857, #34d399);
+  --warning: light-dark(#b45309, #fbbf24);
+  --info: light-dark(#1d4ed8, #60a5fa);
+  --error: light-dark(#ba1a1a, #ffb4ab);
+  --restricted: light-dark(#6b7280, #9ca3af);
+  /* The live-path signal: the one hue no status tone uses */
+  --signal: light-dark(#0e7490, #22d3ee);
+
+  /*
+    Scene roles, as the app's onboarding scenes use them (ScenePen.kt, SceneColors): the ghost is the light shape
+    of the app icon and the tombstone the dark one in both themes; the night sky is the dark end of the theme.
+  */
+  --danger: var(--error);
+  --night: light-dark(#1b1b1d, #131314);
+  --night-light: light-dark(#fbf9fa, #e4e2e3);
+  /*
+    The story plays at night in both themes. Its lights take the most saturated value of each role from the app
+    theme: the dark-theme signal and the light-theme error.
+  */
+  --signal-night: #22d3ee;
+  --danger-night: #ba1a1a;
+
+  /* Type */
+  --font-sans: "Geist Variable", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: "Geist Mono Variable", "SF Mono", Menlo, Consolas, monospace;
+
+  /* Spacing (Spacing.kt, dp to px) */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 12px;
+  --space-lg: 16px;
+  --space-xl: 20px;
+  --space-2xl: 24px;
+  --space-3xl: 32px;
+  --space-section: 40px;
+  --space-screen: 48px;
+
+  /* Radii (Spacing.kt) */
+  --radius-xs: 4px;
+  --radius-sm: 8px;
+  --radius-md: 10px;
+  --radius-lg: 12px;
+  --radius-control: 16px;
+  --radius-xl: 20px;
+  --radius-pill: 28px;
+  --radius-2xl: 32px;
+  --radius-hero: 48px;
+
+  /* Motion (RipDpiMotion.kt) */
+  --duration-quick: 120ms;
+  --duration-state: 220ms;
+  --duration-emphasized: 320ms;
+  --duration-route: 260ms;
+  --duration-signature: 560ms;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-decelerate: cubic-bezier(0.05, 0.7, 0.1, 1);
+  --ease-accelerate: cubic-bezier(0.3, 0, 0.8, 0.15);
+
+  /* Layout */
+  --gutter: 20px;
+  --content-max: 1120px;
+}
+
+@media (min-width: 600px) {
+  :root { --gutter: 28px; }
+}
+@media (min-width: 840px) {
+  :root { --gutter: 32px; }
+}
+
+/* Reduced motion: the app floors durations at 80ms and stops infinite motion. */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration-quick: 80ms;
+    --duration-state: 80ms;
+    --duration-emphasized: 80ms;
+    --duration-route: 80ms;
+    --duration-signature: 80ms;
+  }
+}

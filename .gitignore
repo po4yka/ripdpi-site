@@ -1,0 +1,16 @@
+node_modules/
+.wrangler/
+.env
+.env.*
+!.env.example
+*.local
+*.tsbuildinfo
+.eslintcache
+.lighthouseci/
+.DS_Store
+.idea/
+.claude/settings.local.json
+.claude/worktrees/
+.omc/
+build/
+.react-router/
