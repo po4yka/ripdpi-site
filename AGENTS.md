@@ -16,6 +16,7 @@ Landing page for the RIPDPI Android app and its invite-only relay service, serve
 - `npm run dev`: local server.
 - `npm run check`: typegen, `tsc`, ESLint, and production build. Run it before every commit.
 - TypeScript stays on 6.0 until typescript-eslint supports 7.
+- CI (`.github/workflows/ci.yml`) runs commitlint on PR commits, `npm run check`, `npm audit` and a Wrangler dry run. A push to `main` deploys `build/client/` with `wrangler deploy` (config in `wrangler.jsonc`); the `production` environment needs the `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` secrets. Lint workflow changes with `actionlint` and `zizmor`.
 
 ## Skills
 

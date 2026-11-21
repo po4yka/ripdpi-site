@@ -1,0 +1,31 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: chore
+      include: scope
+    groups:
+      three:
+        patterns: ["three", "@types/three", "@react-three/*", "postprocessing"]
+      react:
+        patterns: ["react", "react-dom", "@types/react", "@types/react-dom", "react-router", "@react-router/*"]
+      lint:
+        patterns: ["eslint", "@eslint/*", "eslint-plugin-*", "typescript-eslint"]
+    ignore:
+      # Held on 6.0 until typescript-eslint supports 7 (see AGENTS.md).
+      - dependency-name: typescript
+        update-types: ["version-update:semver-major"]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: ci

@@ -1,0 +1,9 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  // Static assets only: no worker script and no bindings.
+  "name": "ripdpi-site",
+  "compatibility_date": "2026-11-01",
+  "assets": {
+    "directory": "./build/client"
+  }
+}
