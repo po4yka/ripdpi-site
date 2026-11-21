@@ -48,6 +48,10 @@ export interface GhostState {
   crossed: boolean;
   visible: boolean;
   still: boolean;
+  /** 1 is there; 0 is gone. A ghost comes and goes by this, not by a cut. What it carries, its glow and its light do not fade. */
+  fade: number;
+  /** How open the eyes are: 1 open, about 0.45 narrow. */
+  open: number;
 }
 
 /** A ghost's state, owned by the station that drives it and mutated in that station's useFrame. */
@@ -60,6 +64,8 @@ export function useGhostState(init: Partial<Omit<GhostState, "position">> & { po
     crossed: false,
     visible: true,
     still: false,
+    fade: 1,
+    open: 1,
     ...init,
     position: new THREE.Vector3(...init.position),
   });
@@ -74,7 +80,10 @@ export function Ghost({
   id = 0,
   glow = 0,
   light = false,
+  children,
 }: {
+  /** What the ghost carries: it floats, leans and bobs with the ghost. In the ghost's own units, y up from the hem. */
+  children?: React.ReactNode;
   state: { current: GhostState };
   id?: number;
   /** A signal-coloured glow behind the ghost, 0..1. */
@@ -104,13 +113,18 @@ export function Ghost({
   const aura = useRef<THREE.MeshBasicMaterial>(null!);
   const eyes = useRef<THREE.Group>(null!);
   const crossed = useRef<THREE.Group>(null!);
+  const lean = useRef(0);
 
   useFrame((frame, delta) => {
     const s = state.current;
-    group.current.visible = s.visible;
-    if (!s.visible) return;
+    group.current.visible = s.visible && s.fade > 0.01;
+    if (!group.current.visible) return;
     const t = time.current;
-    const lag = Math.max(-1, Math.min(1, s.lag));
+    // The lean follows the station's value over a moment, so a ghost that starts or stops does not snap.
+    // A scene that draws only on scroll (reduced motion) has no frames to ease over: there the lean is set.
+    const want = Math.max(-1, Math.min(1, s.lag));
+    lean.current = frame.frameloop === "always" ? THREE.MathUtils.damp(lean.current, want, 5, delta) : want;
+    const lag = lean.current;
     const speed = Math.abs(lag);
 
     group.current.position.copy(s.position);
@@ -120,20 +134,22 @@ export function Ghost({
     body.current.scale.set(1 + speed * 0.05, 1 - speed * 0.05, 1);
 
     // The hem waves, faster when the ghost moves, and trails behind it.
+    // Only for a ghost the camera can see: the hem is thousands of vertices.
     const pos = geometry.attributes.position as THREE.BufferAttribute;
     const wave = 0.07 + speed * 0.06;
-    for (let i = 0; i < pos.count; i++) {
+    const count = Math.abs(s.position.x - frame.camera.position.x) < 36 ? pos.count : 0;
+    for (let i = 0; i < count; i++) {
       const x = base[i * 3]!;
       const y = base[i * 3 + 1]!;
       const hem = Math.max(0, 1 - y / 0.9);
       pos.setX(i, x - lag * 0.4 * hem);
       pos.setY(i, y + hem * wave * Math.sin(t * (3 + speed * 4) + x * 4.2 + id));
     }
-    pos.needsUpdate = true;
+    pos.needsUpdate = count > 0;
 
     // Phasing: the sheet empties to a faint outline, as the dashed ghost does in the app.
-    sheet.current.opacity = 1 - s.phase * 0.85;
-    const clear = s.phase > 0.01;
+    sheet.current.opacity = s.fade * (1 - s.phase * 0.85);
+    const clear = sheet.current.opacity < 0.99;
     if (sheet.current.transparent !== clear) {
       sheet.current.transparent = clear;
       // three.js compiles opacity out of an opaque material, so the shader must change with the flag.
@@ -145,13 +161,15 @@ export function Ghost({
     sheet.current.depthTest = solid;
     eyes.current.renderOrder = solid ? 0 : 1;
     eyes.current.children.forEach((eye) => (((eye as THREE.Mesh).material as THREE.Material).depthTest = solid));
-    aura.current.opacity = 0.1 * (1 - s.phase * 0.7);
+    aura.current.opacity = 0.1 * s.fade * (1 - s.phase * 0.7);
 
     // Blink now and then; look toward the motion.
-    const blink = (t * 0.19 + id * 0.37) % 1 > 0.965 ? 0.12 : 1;
-    eyes.current.visible = !s.crossed;
+    const blink = (t * 0.19 + id * 0.37) % 1 > 0.965 ? 0.12 : s.open;
+    // The eyes open out of nothing as the ghost comes, so they do not appear by a cut.
+    const shown = Math.min(1, Math.max(0, (s.fade - 0.3) / 0.5));
+    eyes.current.visible = !s.crossed && shown > 0;
     crossed.current.visible = s.crossed;
-    eyes.current.scale.set(1, blink, 1);
+    eyes.current.scale.set(shown, blink * shown, 1);
     // The eyes go to the reader's pointer while it moves; at rest they look where the ghost goes.
     const follow = pointer.idle < 4;
     if (follow) toPointer(frame, eyes.current.getWorldPosition(eyesAt), gaze).multiplyScalar(3).clampScalar(-1, 1);
@@ -203,6 +221,7 @@ export function Ghost({
             )),
           )}
         </group>
+        {children}
       </group>
     </group>
   );

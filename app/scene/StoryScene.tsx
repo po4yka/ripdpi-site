@@ -8,6 +8,7 @@ import * as THREE from "three";
 import { CHAPTERS } from "~/story/chapters";
 import { chapterPosition, story } from "~/story/progress";
 import { Captions } from "./Captions";
+import { Bursts } from "./Effects";
 import {
   arc,
   ChapterContext,
@@ -24,13 +25,17 @@ import { Cable, Fence, Grass, Ground, Mist, MOON_DIR, Sky } from "./Scenery";
 import { backOff, shotAt } from "./shots";
 import { CheckpointStation, ConnectStation, NightStation, RipStation, TroubleStation, WallStation } from "./Stations";
 
+/** The scene time of the still picture under reduced motion. */
+const STILL = 2.9;
+
 const lerpShot = (c: number, aspect: number) => {
   const i = Math.min(CHAPTERS.length - 1, Math.max(0, Math.floor(c)));
   const a = shotAt(i, aspect);
   const b = shotAt(i + 1, aspect);
   const p = c - i;
   // Hold on the station for most of the chapter, with a slow push in; then travel to the next one.
-  const t = smoothstep(0.6, 1, p);
+  // The last chapter has nowhere to go: it keeps its push in to the end of the page.
+  const t = i === CHAPTERS.length - 1 ? 0 : smoothstep(0.6, 1, p);
   const push = 1 - 0.1 * smoothstep(0, 0.6, p) * (1 - t);
   const mix = (k: "x" | "y" | "z" | "lookX" | "lookY") => a[k] + (b[k] - a[k]) * t;
   return { x: mix("x"), y: mix("y"), z: mix("z") * push, lookX: mix("lookX"), lookY: mix("lookY") };
@@ -66,6 +71,7 @@ function Director({
   const fill = useRef<THREE.DirectionalLight>(null!);
   const look = useMemo(() => new THREE.Vector3(), []);
   const lastPointer = useMemo(() => new THREE.Vector2(), []);
+  const started = useRef(false);
 
   useEffect(() => {
     scene.add(moon.current.target);
@@ -106,7 +112,11 @@ function Director({
     const sway = animate ? Math.sin(clock.current * 0.25) * 0.15 : 0;
     // Under reduced motion a frame is drawn only on scroll, so the camera goes straight to its place instead of
     // easing there over frames that never come.
-    const ease = (from: number, to: number) => (animate ? THREE.MathUtils.damp(from, to, 3, delta) : to);
+    // The first frame does the same, so a page that opens in mid-story or on a tall screen does not fly in from
+    // the grave.
+    const settle = animate && started.current;
+    started.current = true;
+    const ease = (from: number, to: number) => (settle ? THREE.MathUtils.damp(from, to, 3, delta) : to);
     cam.position.x = ease(cam.position.x, shot.x + px + sway);
     cam.position.y = ease(cam.position.y, shot.y + py + (far - 1) * 1.6);
     cam.position.z = ease(cam.position.z, shot.z * far);
@@ -118,9 +128,10 @@ function Director({
     if (fog) fog.far = cam.position.z + 60;
     if (fog) fog.color.copy(arc.horizon);
 
-    // The moonlight comes from the moon of the sky dome, and its shadow box follows the camera.
-    moon.current.position.copy(look).setY(0).addScaledVector(MOON_DIR, 40);
-    moon.current.target.position.copy(look).setY(0);
+    // The moonlight comes from the moon of the sky dome, and its shadow box stands over the shot.
+    // It follows the shot, not the pointer: a shadow map that slides with every move of the mouse makes its edges crawl.
+    moon.current.target.position.set(shot.lookX, 0, 0);
+    moon.current.position.copy(moon.current.target.position).addScaledVector(MOON_DIR, 40);
     moon.current.target.updateMatrixWorld();
     // The focus stands between the props and the captions behind them, so both stay sharp and only the far sky softens.
     focus.current?.target?.set(look.x, look.y - 1.5, -3);
@@ -199,7 +210,12 @@ function DemandBridge() {
 export default function StoryScene({ animate, onReady }: { animate: boolean; onReady: () => void }) {
   const palette = useMemo(() => makePalette(), []);
   const chapter = useRef(chapterPosition(story.progress));
-  const clock = useRef(0);
+  // Under reduced motion the time stands still, so it stands at a moment that tells the story: a packet stopped
+  // at the wall, ghosts on both sides of it, every eye open.
+  const clock = useRef(animate ? 0 : STILL);
+  useEffect(() => {
+    if (!animate) clock.current = STILL;
+  }, [animate]);
   const focus = useRef<DepthOfFieldEffect | null>(null);
   const [level, setLevel] = useState(startLevel);
   const quality = QUALITY[level]!;
@@ -233,6 +249,7 @@ export default function StoryScene({ animate, onReady }: { animate: boolean; onR
             <Fence />
             <Mist />
             <Cable />
+            <Bursts />
             <Captions />
             <RipStation />
             <WallStation />

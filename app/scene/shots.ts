@@ -35,6 +35,8 @@ const WIDE: Record<string, Partial<Shot>> = {
   rip: { caption: 0.4 },
   wall: { captionWidth: 0.38 },
   checkpoint: { x: -2, lookX: -2.6, captionWidth: 0.36 },
+  // The ghost that taps stands left of the device, nearer the camera: the shot turns left to keep all of it.
+  connect: { x: -1.2, lookX: -0.7 },
   // The download button stands at the foot of the frame on the left: the stone and the ghost keep to the right of it.
   get: { x: -3.5, lookX: -3.5, z: 22.5 },
 };
@@ -61,9 +63,8 @@ export function shotAt(i: number, aspect: number): Shot {
 }
 
 /**
- * Portrait screens see less width, so the camera backs off, but not so far that the props shrink to the middle of a
- * tall frame: past the limit the shot crops the station instead (see `TALL`).
+ * Screens narrower than 16:9 see less width, so the camera backs off until the frame shows the width that a 16:9 screen shows, but not so far that the props shrink to the middle of a tall frame: past the limit the shot crops the station instead (see `TALL`).
  */
 export function backOff(aspect: number): number {
-  return Math.min(1.7, Math.max(1, 1.5 / aspect));
+  return Math.min(1.7, Math.max(1, 1.78 / aspect));
 }
