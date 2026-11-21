@@ -66,7 +66,8 @@ function Director({ animate, focus }: { animate: boolean; focus: { current: Dept
     moon.current.position.copy(look).setY(0).addScaledVector(MOON_DIR, 40);
     moon.current.target.position.copy(look).setY(0);
     moon.current.target.updateMatrixWorld();
-    focus.current?.target?.set(look.x, look.y - 1.5, -1.5);
+    // The focus stands between the props and the captions behind them, so both stay sharp and only the far sky softens.
+    focus.current?.target?.set(look.x, look.y - 1.5, -3);
   });
 
   return (
@@ -181,8 +182,8 @@ export default function StoryScene({ animate, onReady }: { animate: boolean; onR
               <DepthOfField ref={focus} target={[0, 0, 0]} worldFocusRange={26} bokehScale={1.6} />
               <Bloom intensity={1.3} luminanceThreshold={1} luminanceSmoothing={0.25} mipmapBlur />
               <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
-              <Vignette offset={0.28} darkness={0.75} />
-              <Noise blendFunction={BlendFunction.SOFT_LIGHT} opacity={0.18} />
+              <Vignette offset={0.28} darkness={0.55} />
+              <Noise blendFunction={BlendFunction.SOFT_LIGHT} opacity={0.06} />
             </EffectComposer>
           </ClockContext.Provider>
         </ChapterContext.Provider>

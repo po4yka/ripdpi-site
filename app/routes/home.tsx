@@ -121,7 +121,11 @@ export default function Home() {
           <img src="/favicon.svg" alt="" className="size-5" />
           RIPDPI
         </a>
-        <a href={RELEASES_URL} className="border-b border-signal-night/60 pb-0.5 text-signal-night hover:border-signal-night">
+        {/* The one signal-coloured thing on the first screen, where the scene itself has no live path yet. */}
+        <a
+          href={RELEASES_URL}
+          className="flex min-h-10 items-center bg-signal-night px-4 font-medium text-night transition-[filter,scale] duration-(--duration-quick) ease-(--ease-standard) hover:brightness-110 active:scale-[0.96]"
+        >
           Download
         </a>
       </header>

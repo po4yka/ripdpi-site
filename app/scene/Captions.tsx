@@ -1,6 +1,6 @@
 import { Text } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
-import { useRef } from "react";
+import { useMemo, useRef } from "react";
 import * as THREE from "three";
 
 import { CHAPTERS } from "~/story/chapters";
@@ -14,6 +14,8 @@ const DEPTH = -4.5;
 
 export function Captions() {
   const palette = usePalette();
+  // The lightest thing in the frame, kept just under the bloom threshold so the words do not glow.
+  const color = useMemo(() => palette.nightLight.clone().multiplyScalar(1.25), [palette]);
   const chapter = useChapter();
   const size = useThree((s) => s.size);
   const fov = useThree((s) => (s.camera as THREE.PerspectiveCamera).fov);
@@ -60,7 +62,7 @@ export function Captions() {
             position={[x, y, DEPTH]}
             anchorX="left"
             anchorY="middle"
-            color={palette.nightLight}
+            color={color}
           >
             {ch.caption}
           </Text>
