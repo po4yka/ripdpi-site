@@ -8,7 +8,7 @@ Landing page for the RIPDPI Android app and its invite-only relay service, serve
 - 3D: three.js with React Three Fiber, drei and postprocessing, under `app/scene/`. Scene modules load only through `React.lazy` after hydration; never import them from a module that the prerender evaluates.
 - Motion: GSAP (ScrollTrigger and the other plugins) through `@gsap/react`'s `useGSAP`. Do not add a second animation library.
 - Tailwind 4 through `@tailwindcss/vite`; tokens are exposed as utilities in `app/app.css`.
-- Build output is `build/client/`, deployed as a Cloudflare Worker with static assets only (no worker script, no bindings).
+- Build output is `build/client/`, deployed as a Cloudflare Worker with static assets. The only Worker code is `worker/index.ts`: it runs for `/` only (`run_worker_first` in `wrangler.jsonc`) and returns the prerendered `/index.md` when the request asks for `Accept: text/markdown`. Keep everything else static.
 - English only for now, at `/` (`app/routes/home.tsx`). Story captions live in `app/story/chapters.ts`.
 
 ## Commands

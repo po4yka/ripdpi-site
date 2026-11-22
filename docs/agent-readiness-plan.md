@@ -40,15 +40,13 @@ Agents pay 5-10x fewer tokens on Markdown, and the HTML here carries the 3D app 
 - `public/llms.txt` stays hand-written and links to `index.md` and the skill. No `llms-full.txt`: `index.md` is the full text.
 - Add `<link rel="alternate" type="text/markdown" href="/index.md">` to the page head.
 
-### 3. Markdown negotiation on `/` (15 min to try, fallback 1 h)
+### 3. Markdown negotiation on `/` (done)
 
-First try the zero-code path: turn on "Markdown for Agents" for the ripdpi.dev zone in the Cloudflare dashboard (AI Crawl Control), then check:
+Cloudflare's "Markdown for Agents" needs the Pro plan; the zone is on Free. So `worker/index.ts` does it: for `/` only (`run_worker_first: ["/"]`), a request with `Accept: text/markdown` gets the prerendered `/index.md`, and every other request gets the static HTML. Both carry `Vary: Accept`. Check:
 
 ```bash
-curl -sI -H 'Accept: text/markdown' https://ripdpi.dev/ | rg -i 'content-type|x-markdown-tokens'
+curl -sI -H 'Accept: text/markdown' https://ripdpi.dev/ | rg -i 'content-type|vary'
 ```
-
-Cloudflare documents this for HTML from the origin; it does not say whether Worker static assets are converted. If the check fails, the fallback is a small Worker script that returns `index.md` when `Accept` contains `text/markdown` and passes everything else to `env.ASSETS`. That breaks the "static assets only, no worker script" rule in `AGENTS.md`, so it needs the owner's OK. With item 2 in place, agents still get Markdown at `/index.md` without negotiation.
 
 ### 4. Link headers (10 min)
 

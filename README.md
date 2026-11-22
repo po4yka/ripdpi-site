@@ -59,7 +59,7 @@ The captions live in [`app/story/chapters.ts`](app/story/chapters.ts).
 | 3D | three.js, React Three Fiber, drei, postprocessing (lazy-loaded after hydration) |
 | Motion | GSAP with ScrollTrigger through `@gsap/react` |
 | Styles | Tailwind CSS 4; colour tokens follow the app's Kotlin theme |
-| Hosting | Cloudflare Worker with static assets only, on `ripdpi.dev` |
+| Hosting | Cloudflare Worker with static assets on `ripdpi.dev`, plus a small Worker for Markdown content negotiation on `/` |
 
 ## Quick start
 
