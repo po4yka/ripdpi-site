@@ -2,6 +2,7 @@ import { RoundedBox } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
+import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 
 import { Shadow } from "./Ghost";
 import { hash, usePalette, useSceneTime } from "./kit";
@@ -84,11 +85,28 @@ export function BrickTower({ x, w = 2.2, h = 7.5, d = 2.2 }: { x: number; w?: nu
   );
 }
 
+let grid: THREE.BufferGeometry | undefined;
+/** The six meridians and five parallels of the globe as one geometry, shared by every globe: one draw, not eleven. */
+function globeGrid(): THREE.BufferGeometry {
+  if (grid) return grid;
+  const rings = [
+    ...Array.from({ length: 6 }, (_, i) =>
+      new THREE.TorusGeometry(1.105, 0.012, 4, 64).rotateY((i * Math.PI) / 6),
+    ),
+    ...[-0.85, -0.45, 0, 0.45, 0.85].map((y) =>
+      new THREE.TorusGeometry(Math.sqrt(1.105 ** 2 - y * y), 0.012, 4, 64).rotateX(Math.PI / 2).translate(0, y, 0),
+    ),
+  ];
+  grid = mergeGeometries(rings)!;
+  rings.forEach((r) => r.dispose());
+  return grid;
+}
+
 /** The open internet: a globe on a stand, as in the app. */
 export function Globe({ x, scale = 1 }: { x: number; scale?: number }) {
   const palette = usePalette();
   const time = useSceneTime();
-  const lines = useRef<THREE.Group>(null!);
+  const lines = useRef<THREE.Mesh>(null!);
   // The globe turns slowly, as the app's does.
   useFrame(() => void (lines.current.rotation.y = time.current * 0.45));
   return (
@@ -101,20 +119,9 @@ export function Globe({ x, scale = 1 }: { x: number; scale?: number }) {
       </mesh>
       {/* The axis leans, as a desk globe's does; the grid turns about it. */}
       <group position={[0, 2.4, 0]} rotation-z={-0.41}>
-        <group ref={lines}>
-          {Array.from({ length: 6 }, (_, i) => (
-            <mesh key={i} rotation-y={(i * Math.PI) / 6}>
-              <torusGeometry args={[1.105, 0.012, 4, 64]} />
-              <meshStandardMaterial color={palette.ink} roughness={0.55} metalness={0.3} />
-            </mesh>
-          ))}
-          {[-0.85, -0.45, 0, 0.45, 0.85].map((y) => (
-            <mesh key={y} position={[0, y, 0]} rotation-x={Math.PI / 2}>
-              <torusGeometry args={[Math.sqrt(1.105 ** 2 - y * y), 0.012, 4, 64]} />
-              <meshStandardMaterial color={palette.ink} roughness={0.55} metalness={0.3} />
-            </mesh>
-          ))}
-        </group>
+        <mesh ref={lines} geometry={globeGrid()}>
+          <meshStandardMaterial color={palette.ink} roughness={0.55} metalness={0.3} />
+        </mesh>
       </group>
       <mesh position={[0, 0.65, 0]}>
         <cylinderGeometry args={[0.09, 0.09, 1.3, 8]} />

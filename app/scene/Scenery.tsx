@@ -255,7 +255,8 @@ export function Grass() {
   }, [palette]);
   return (
     <instancedMesh ref={blades} args={[undefined, undefined, count]} frustumCulled={false} userData={{ noCast: true }}>
-      <coneGeometry args={[0.035, 1, 3, 5]} />
+      {/* Three rows carry the bend; the base stands in the ground, so it needs no cap. */}
+      <coneGeometry args={[0.035, 1, 3, 3, true]} />
       <meshStandardMaterial roughness={0.9} onBeforeCompile={bend} />
     </instancedMesh>
   );

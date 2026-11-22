@@ -229,14 +229,23 @@ export default function StoryScene({ animate, onReady }: { animate: boolean; onR
   const focus = useRef<DepthOfFieldEffect | null>(null);
   const [level, setLevel] = useState(startLevel);
   const quality = QUALITY[level]!;
+  // Under the story the scene scrolls away, and a scene nobody sees must not keep the GPU busy.
+  const canvas = useRef<HTMLCanvasElement>(null);
+  const [onScreen, setOnScreen] = useState(true);
+  useEffect(() => {
+    const seen = new IntersectionObserver(([e]) => setOnScreen(e!.isIntersecting));
+    seen.observe(canvas.current!);
+    return () => seen.disconnect();
+  }, []);
 
   return (
     <Canvas
+      ref={canvas}
       flat
       shadows="percentage"
       camera={{ position: [1.6, 1.5, 12.5], fov: 42, near: 0.1, far: 200 }}
       dpr={[1, quality.dpr]}
-      frameloop={animate ? "always" : "demand"}
+      frameloop={!onScreen ? "never" : animate ? "always" : "demand"}
       gl={{ antialias: false, powerPreference: "high-performance" }}
     >
       <color attach="background" args={[palette.sky]} />
@@ -244,9 +253,10 @@ export default function StoryScene({ animate, onReady }: { animate: boolean; onR
       <PaletteContext.Provider value={palette}>
         <ChapterContext.Provider value={chapter}>
           <ClockContext.Provider value={clock}>
-            {/* Drawing on demand has no frame rate to judge, so only the running scene is watched. */}
+            {/* Drawing on demand has no frame rate to judge, so only the running scene is watched. It goes away while
+                the scene is off screen: the gap would count as one slow sample. */}
             {animate ? (
-              <PerformanceMonitor onDecline={() => setLevel((l) => Math.min(QUALITY.length - 1, l + 1))} />
+              onScreen && <PerformanceMonitor onDecline={() => setLevel((l) => Math.min(QUALITY.length - 1, l + 1))} />
             ) : (
               <DemandBridge />
             )}
