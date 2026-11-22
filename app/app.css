@@ -82,3 +82,57 @@
     stroke: none;
   }
 }
+
+/* The line drawings of the story, where there is no 3D scene: thin night-light lines, shapes filled with the night. */
+.story-drawing {
+  position: absolute;
+  /* Right of the middle and low: clear of the caption above it and of the note at the lower left. */
+  top: 64%;
+  left: 57%;
+  width: min(84vw, 96vh);
+  translate: -50% -50%;
+  fill: var(--night);
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0.9;
+}
+.story-drawing .ink {
+  fill: currentColor;
+  stroke: none;
+}
+.story-drawing text {
+  fill: currentColor;
+  stroke: none;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  letter-spacing: 0.12em;
+}
+.story-drawing .signal {
+  stroke: var(--signal-night);
+}
+.story-drawing .danger {
+  stroke: var(--danger-night);
+}
+.story-drawing .signal.lit {
+  fill: var(--signal-night);
+}
+.story-drawing .danger.lit {
+  fill: var(--danger-night);
+}
+.story-drawing .beam {
+  fill: var(--danger-night);
+  fill-opacity: 0.14;
+  stroke-opacity: 0.5;
+}
+.story-drawing .tunnel {
+  fill: none;
+  stroke-width: 16;
+  stroke-opacity: 0.22;
+}
+.story-drawing .glow {
+  fill: var(--signal-night);
+  fill-opacity: 0.14;
+  stroke: none;
+}

@@ -6,6 +6,7 @@ import { lazy, Suspense, useRef, useState } from "react";
 import { useHydrated, useReducedMotion, useWebGL2 } from "~/lib/environment";
 import { CHAPTERS, RELEASES_URL, REPO_URL, type Chapter } from "~/story/chapters";
 import { Details } from "~/story/Details";
+import { Drawing } from "~/story/Drawings";
 import { FAQ } from "~/story/content";
 import { Mark } from "~/story/Mark";
 import { chapterPosition, chapterShown, setStoryProgress, smoothstep } from "~/story/progress";
@@ -71,7 +72,7 @@ export function meta() {
 function Caption({ chapter, first, inScene }: { chapter: Chapter; first: boolean; inScene: boolean }) {
   const Heading = first ? "h1" : "h2";
   return (
-    <div className="mx-auto flex h-full w-full max-w-(--content-max) flex-col px-(--gutter) pt-[16vh] pb-[7vh]">
+    <div className="relative mx-auto flex h-full w-full max-w-(--content-max) flex-col px-(--gutter) pt-[16vh] pb-[7vh]">
       <Heading
         {...(inScene ? {} : { "data-fade": "" })}
         className={
@@ -208,12 +209,19 @@ export default function Home() {
     () => {
       if (reduced) return;
       gsap.to("[data-cue-arrow]", { y: 6, duration: 0.9, ease: "sine.inOut", repeat: -1, yoyo: true });
+      // The line drawings, where they stand in for the scene: the ghosts float and the scanner sweeps.
+      gsap.to("[data-bob]", { y: -5, duration: 1.7, ease: "sine.inOut", repeat: -1, yoyo: true, stagger: { each: 0.35, from: "random" } });
+      gsap.fromTo(
+        "[data-sweep]",
+        { rotation: -8, svgOrigin: "214 62" },
+        { rotation: 10, svgOrigin: "214 62", duration: 2.4, ease: "sine.inOut", repeat: -1, yoyo: true },
+      );
       gsap
         .timeline()
         .to("[data-mark] path", { strokeDashoffset: 0, duration: 1, ease: "power2.inOut", stagger: 0.12 })
         .to("[data-mark] path", { fillOpacity: 1, strokeOpacity: 0, duration: 0.5, ease: "power1.out" }, "-=0.35");
     },
-    { scope: root, dependencies: [reduced] },
+    { scope: root, dependencies: [reduced, webgl], revertOnUpdate: true },
   );
 
   // Once the scene has a frame, the mark gives way to the tombstone it stands for.
@@ -279,15 +287,13 @@ export default function Home() {
       )}
 
       <div ref={storyEl} className="relative">
-      {/* Scene layer: stays on screen for the whole story. Without WebGL it shows the app icon. */}
+      {/* Scene layer: stays on screen for the whole story. Without WebGL it is empty, and the frames draw the story. */}
       <div className="sticky top-0 h-dvh overflow-hidden" aria-hidden="true">
         {webgl && (
           <Suspense fallback={null}>
             <StoryScene animate={!reduced} onReady={() => setSceneReady(true)} />
           </Suspense>
         )}
-        {/* The mark stays over the canvas until the scene has drawn a frame, then fades into it. */}
-        {!markGone && <Mark />}
         {/* The foot of the frame goes back into the night, so the notes read over the grass. */}
         <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[32vh] bg-linear-to-t from-night/80 to-transparent" />
       </div>
@@ -298,6 +304,11 @@ export default function Home() {
         {CHAPTERS.map((chapter, i) => (
           <section key={chapter.id} id={chapter.id} data-chapter className="h-[170vh]">
             <div data-frame className={hydrated ? "pointer-events-none fixed inset-0" : "sticky top-0 h-dvh"}>
+              {/* Behind the words: the mark on the first chapter, until the scene has drawn a frame and it fades
+                  into it; without WebGL the mark stays, and each later chapter has its line drawing. */}
+              <div data-fade className="absolute inset-0">
+                {i === 0 ? !markGone && <Mark /> : !webgl && <Drawing id={chapter.id} />}
+              </div>
               <Caption chapter={chapter} first={i === 0} inScene={inScene} />
             </div>
           </section>
