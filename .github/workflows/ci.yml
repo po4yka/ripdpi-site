@@ -55,6 +55,8 @@ jobs:
         with:
           name: site
           path: build/client
+          # The agent skills live under build/client/.well-known/, which the action skips by default.
+          include-hidden-files: true
           retention-days: 7
 
   deploy:
