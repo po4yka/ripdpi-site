@@ -2,7 +2,7 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 
-import { arc, hash, noiseTexture, smoothstep, usePalette, useSceneTime } from "./kit";
+import { arc, hash, noiseTexture, usePalette, useSceneTime } from "./kit";
 
 const FROM = -30;
 const TO = 167;
@@ -16,9 +16,19 @@ export const MOON_DIR = new THREE.Vector3(0.42, 0.36, -0.83).normalize();
  */
 const MOON_DIR_TALL = new THREE.Vector3(0.09, 0.33, -0.94).normalize();
 
-/** The sky colour along a view direction: the horizon tone low, the night above. Shared by the dome and the moon. */
-function skyShare(y: number): number {
-  return smoothstep(-0.05, 0.4, y);
+/** The crescent: the moon's disc less the disc of its dark side, as one shape, so the halo shows in the dark. */
+function crescent(): THREE.ShapeGeometry {
+  const [R, r, dx, dy] = [4.2, 3.6, 1.9, 1.1];
+  const d = Math.hypot(dx, dy);
+  const turn = Math.atan2(dy, dx);
+  // Where the two circles cross, along the line between their centres.
+  const a = (R * R - r * r + d * d) / (2 * d);
+  const lit = Math.acos(a / R);
+  const dark = Math.acos((a - d) / r);
+  const s = new THREE.Shape();
+  s.absarc(0, 0, R, turn + lit, turn - lit + 2 * Math.PI, false);
+  s.absarc(dx, dy, r, turn - dark, turn + dark - 2 * Math.PI, true);
+  return new THREE.ShapeGeometry(s, 48);
 }
 
 /** The shafts of moonlight: which way each falls from the moon (0 is straight down), how wide and how long. */
@@ -86,15 +96,36 @@ export function Sky() {
     }
     const g = new THREE.BufferGeometry();
     g.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+    g.setAttribute("seed", new THREE.BufferAttribute(Float32Array.from({ length: n }, (_, i) => hash(i + 600)), 1));
     return g;
   }, []);
+  // Most stars are small and dim, a few are large and bright; each twinkles at its own pace.
+  const starMaterial = useMemo(
+    () =>
+      new THREE.ShaderMaterial({
+        transparent: true,
+        depthWrite: false,
+        fog: false,
+        uniforms: { color: { value: palette.nightLight }, time: { value: 0 }, dpr: { value: 1 } },
+        vertexShader:
+          "attribute float seed; uniform float time; uniform float dpr; varying float vLight; void main() { float big = pow(seed, 5.0); vLight = (0.3 + 0.7 * big) * (0.8 + 0.2 * sin(time * (0.6 + seed * 1.7) + seed * 40.0)); gl_PointSize = (1.2 + 2.4 * big) * dpr; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }",
+        fragmentShader:
+          "uniform vec3 color; varying float vLight; void main() { float edge = 1.0 - smoothstep(0.25, 0.5, length(gl_PointCoord - 0.5)); gl_FragColor = vec4(color, vLight * edge);\n#include <colorspace_fragment>\n}",
+      }),
+    [palette],
+  );
+  const moonShape = useMemo(() => crescent(), []);
   const halo = useMemo(() => radialTexture(), []);
   useEffect(
-    () => () => (material.dispose(), stars.dispose(), halo.dispose(), shaft.dispose(), shaftGeometry.dispose()),
-    [material, stars, halo, shaft, shaftGeometry],
+    () => () => (
+      material.dispose(), stars.dispose(), starMaterial.dispose(), moonShape.dispose(), halo.dispose(), shaft.dispose(), shaftGeometry.dispose()
+    ),
+    [material, stars, starMaterial, moonShape, halo, shaft, shaftGeometry],
   );
-  useFrame(({ camera }) => {
+  useFrame(({ camera, gl }) => {
     group.current.position.copy(camera.position);
+    starMaterial.uniforms.time!.value = time.current;
+    starMaterial.uniforms.dpr!.value = gl.getPixelRatio();
     // The shafts breathe, each at its own pace, as thin cloud passes the moon.
     shafts.current.forEach((m, i) => m && (m.opacity = 0.05 + 0.025 * Math.sin(time.current * (0.21 + i * 0.07) + i * 1.9)));
   });
@@ -102,15 +133,12 @@ export function Sky() {
   const tall = useThree((s) => s.size.width < s.size.height);
   const dir = tall ? MOON_DIR_TALL : MOON_DIR;
   const moon = dir.clone().multiplyScalar(80);
-  const shade = palette.horizon.clone().lerp(palette.sky, skyShare(dir.y));
   return (
     <group ref={group} userData={{ noShadow: true }}>
       <mesh material={material} renderOrder={-2}>
         <sphereGeometry args={[90, 32, 16]} />
       </mesh>
-      <points geometry={stars} renderOrder={-1}>
-        <pointsMaterial color={palette.nightLight} size={1.6} sizeAttenuation={false} fog={false} transparent opacity={0.75} depthWrite={false} />
-      </points>
+      <points geometry={stars} material={starMaterial} renderOrder={-1} />
       <group
         position={moon}
         quaternion={new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), dir.clone().negate())}
@@ -137,13 +165,8 @@ export function Sky() {
             </mesh>
           </group>
         ))}
-        <mesh renderOrder={-1}>
-          <circleGeometry args={[4.2, 64]} />
+        <mesh renderOrder={-1} geometry={moonShape}>
           <meshBasicMaterial color={palette.nightLight.clone().multiplyScalar(1.5)} fog={false} depthWrite={false} toneMapped={false} />
-        </mesh>
-        <mesh renderOrder={-1} position={[1.9, 1.1, 0.01]}>
-          <circleGeometry args={[3.6, 64]} />
-          <meshBasicMaterial color={shade} fog={false} depthWrite={false} />
         </mesh>
       </group>
     </group>
@@ -169,6 +192,15 @@ export function Ground() {
   const palette = usePalette();
   const map = useMemo(() => {
     const t = noiseTexture(256, 16, 3, 0.5);
+    // The noise is flat along the lines of its lattice, and the moon shows them as rows. Add the same grain at two
+    // other turns; whole-number turns keep the tile seamless.
+    const g = (t.image as HTMLCanvasElement).getContext("2d")!;
+    const img = g.getImageData(0, 0, 256, 256);
+    const n = Uint8Array.from({ length: 256 * 256 }, (_, i) => img.data[i * 4]!);
+    const at = (x: number, y: number) => n[(y & 255) * 256 + (x & 255)]!;
+    for (let y = 0; y < 256; y++)
+      for (let x = 0; x < 256; x++) img.data.fill((at(x, y) + at(2 * x + y, 2 * y - x) + at(x - y, x + y)) / 3, (y * 256 + x) * 4, (y * 256 + x) * 4 + 3);
+    g.putImageData(img, 0, 0);
     t.repeat.set(40, 40);
     return t;
   }, []);
@@ -185,8 +217,21 @@ export function Ground() {
 /** Tufts of dry grass along the route: they catch the moon at their tips. */
 export function Grass() {
   const palette = usePalette();
+  const time = useSceneTime();
   const blades = useRef<THREE.InstancedMesh>(null!);
   const count = 4200;
+  // Each blade bends to one side, more toward its tip, and the wind moves the tips. The matrix gives its height.
+  const sway = useMemo(() => ({ value: 0 }), []);
+  const bend = (shader: THREE.WebGLProgramParametersWithUniforms) => {
+    shader.uniforms.uSway = sway;
+    shader.vertexShader = shader.vertexShader
+      .replace("#include <common>", "#include <common>\nuniform float uSway;")
+      .replace(
+        "#include <begin_vertex>",
+        "#include <begin_vertex>\nfloat up = position.y + 0.5; transformed.x += up * up * length(instanceMatrix[1].xyz) * (0.45 + 0.12 * sin(uSway * 1.3 + instanceMatrix[3].x * 0.9 + instanceMatrix[3].z * 0.6));",
+      );
+  };
+  useFrame(() => void (sway.value = time.current));
   useLayoutEffect(() => {
     const m = new THREE.Matrix4();
     const q = new THREE.Quaternion();
@@ -209,8 +254,8 @@ export function Grass() {
   }, [palette]);
   return (
     <instancedMesh ref={blades} args={[undefined, undefined, count]} frustumCulled={false} userData={{ noCast: true }}>
-      <coneGeometry args={[0.035, 1, 3]} />
-      <meshStandardMaterial roughness={0.9} />
+      <coneGeometry args={[0.035, 1, 3, 5]} />
+      <meshStandardMaterial roughness={0.9} onBeforeCompile={bend} />
     </instancedMesh>
   );
 }
