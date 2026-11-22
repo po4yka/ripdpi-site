@@ -1,10 +1,13 @@
 import { Line, Text } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
-import { useEffect, useMemo, useRef } from "react";
+import { useMemo, useRef } from "react";
 import * as THREE from "three";
 import type { Line2 } from "three/addons/lines/Line2.js";
 
 import { noiseTexture, usePalette } from "./kit";
+
+/** Weathered granite, shared by every stone: the noise takes a million sines to draw, so it is drawn once. */
+let granite: THREE.CanvasTexture | undefined;
 
 export const TOMB_W = 5;
 export const TOMB_H = 6.3;
@@ -57,12 +60,8 @@ export function Tomb({ state, x = 0, z = 0 }: { state: { current: TombState }; x
     return g;
   }, []);
   // Weathered granite: grain in the colour and in the surface.
-  const grain = useMemo(() => {
-    const t = noiseTexture(256, 8, 5, 0.3);
-    t.repeat.set(0.6, 0.6);
-    return t;
-  }, []);
-  useEffect(() => () => grain.dispose(), [grain]);
+  const grain = (granite ??= noiseTexture(256, 8, 5, 0.3));
+  granite.repeat.set(0.6, 0.6);
   const stone = useRef<THREE.Group>(null!);
   const carving = useRef<THREE.Group>(null!);
   const lines = useRef<(Line2 | null)[]>([]);

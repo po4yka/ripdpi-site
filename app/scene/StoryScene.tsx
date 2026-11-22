@@ -55,7 +55,7 @@ const lerpShot = (c: number, aspect: number) => {
  * stays low, and never back up, so the picture does not flicker between levels.
  */
 const QUALITY = [
-  { dpr: 1.75, samples: 4, depthOfField: true, shadowMap: 2048 },
+  { dpr: 1.5, samples: 2, depthOfField: true, shadowMap: 2048 },
   { dpr: 1.5, samples: 2, depthOfField: false, shadowMap: 2048 },
   { dpr: 1.25, samples: 0, depthOfField: false, shadowMap: 1024 },
 ] as const;

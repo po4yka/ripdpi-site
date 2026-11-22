@@ -6,6 +6,9 @@ import { SHEET, SHEET_HEM } from "~/story/ghost";
 import { pointer, toPointer, usePalette, useSceneTime } from "./kit";
 import { radialTexture } from "./Scenery";
 
+/** One halo for every ghost: the texture never changes, so thirteen copies would only fill memory. */
+let ghostHalo: THREE.Texture | undefined;
+
 /** The sheet of the ghost (`SHEET`), in its design units divided by 10. Here y grows up and the hem sits at y = 0. */
 function sheetOutline(): THREE.Shape {
   const s = new THREE.Shape();
@@ -143,7 +146,7 @@ export function Ghost({
   const geometry = useMemo(() => sheetShape(), []);
   const uniforms = useMemo(() => ({ uLag: { value: 0 }, uWave: { value: 0 }, uTurn: { value: 0 }, uPhase: { value: 0 } }), []);
   const compile = useMemo(() => (shader: THREE.WebGLProgramParametersWithUniforms) => ghostShader(shader, uniforms), [uniforms]);
-  const halo = useMemo(() => radialTexture(), []);
+  const halo = (ghostHalo ??= radialTexture());
   const group = useRef<THREE.Group>(null!);
   const body = useRef<THREE.Group>(null!);
   const sheet = useRef<THREE.MeshStandardMaterial>(null!);
@@ -262,12 +265,13 @@ export function Ghost({
   );
 }
 
+let disc: THREE.CircleGeometry | undefined;
+
 /** The soft shadow under a thing standing on the ground, as the app draws it: a flat ink ellipse. */
 export function Shadow({ x, z = 0, w, d = 0.5, opacity = 0.35 }: { x: number; z?: number; w: number; d?: number; opacity?: number }) {
   const palette = usePalette();
   return (
-    <mesh position={[x, 0.01, z]} rotation-x={-Math.PI / 2} scale={[w, d, 1]}>
-      <circleGeometry args={[1, 40]} />
+    <mesh position={[x, 0.01, z]} rotation-x={-Math.PI / 2} scale={[w, d, 1]} geometry={(disc ??= new THREE.CircleGeometry(1, 40))}>
       <meshBasicMaterial color={palette.night} transparent opacity={opacity} depthWrite={false} />
     </mesh>
   );

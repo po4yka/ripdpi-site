@@ -457,6 +457,9 @@ export function Mist() {
     ],
     [],
   );
+  // Each layer drifts at its own speed, so it needs its own offset: one copy of the texture each, made once.
+  const maps = useMemo(() => layers.map(() => texture.clone()), [layers, texture]);
+  useEffect(() => () => maps.forEach((m) => m.dispose()), [maps]);
   const mats = useRef<(THREE.MeshBasicMaterial | null)[]>([]);
   useFrame(() => {
     mats.current.forEach((m, i) => {
@@ -472,7 +475,7 @@ export function Mist() {
           <planeGeometry args={[TO - FROM, l.h]} />
           <meshBasicMaterial
             ref={(m) => void (mats.current[i] = m)}
-            map={texture.clone()}
+            map={maps[i]}
             map-repeat={[(TO - FROM) / 18, 1]}
             color={palette.nightLight}
             transparent
