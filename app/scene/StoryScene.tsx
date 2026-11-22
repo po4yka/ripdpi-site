@@ -21,7 +21,7 @@ import {
   usePalette,
   useSceneTime,
 } from "./kit";
-import { Cable, Fence, Grove, Grass, Ground, Mist, MOON_DIR, Sky } from "./Scenery";
+import { Cable, Dust, Fence, Grove, Grass, Ground, Hills, Mist, MOON_DIR, Sky } from "./Scenery";
 import { backOff, shotAt } from "./shots";
 import {
   BarrierStation,
@@ -178,17 +178,18 @@ function ShadowRig() {
   const frames = useRef(0);
   useFrame(() => {
     if (frames.current++ % 30 !== 0) return;
-    const walk = (o: THREE.Object3D, off: boolean) => {
+    const walk = (o: THREE.Object3D, off: boolean, flat: boolean) => {
       const no = off || !!o.userData.noShadow;
+      const noCast = flat || !!o.userData.noCast;
       const mesh = o as THREE.Mesh;
       if (mesh.isMesh && !("isLineSegments2" in mesh)) {
         const m = mesh.material as THREE.Material;
-        mesh.castShadow = !no && !o.userData.noCast && !m.transparent;
+        mesh.castShadow = !no && !noCast && !m.transparent;
         mesh.receiveShadow = !no && m instanceof THREE.MeshStandardMaterial;
       }
-      o.children.forEach((c) => walk(c, no));
+      o.children.forEach((c) => walk(c, no, noCast));
     };
-    walk(scene, false);
+    walk(scene, false, false);
   });
   return null;
 }
@@ -257,6 +258,8 @@ export default function StoryScene({ animate, onReady }: { animate: boolean; onR
             <Grass />
             <Fence />
             <Grove />
+            <Hills />
+            <Dust />
             <Mist />
             <Cable />
             <Bursts />

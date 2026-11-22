@@ -14,8 +14,18 @@ const SHEET_PATH = `${SHEET.map(
   ([command, ...n]) => command + n.map((v, i) => (((i % 2 ? v - SHEET_HEM : v) * 14) / SHEET_HALF_WIDTH).toFixed(1)).join(" "),
 ).join("")}Z`;
 
+/** The fence behind every station, and tufts of dry grass on the ground, as in the 3D landscape. */
+const FENCE = `${Array.from({ length: 39 }, (_, i) => `M${12 + i * 12} ${GROUND}v${i % 5 ? -20 : -25}`).join("")}M8 ${GROUND - 6}H${W - 8}M8 ${GROUND - 16}H${W - 8}`;
+const TUFTS = [26, 104, 178, 292, 366, 456].map((x) => `M${x} ${GROUND}l-4-8M${x + 1} ${GROUND}l1-11M${x + 2} ${GROUND}l5-7`).join("");
+
 function Ground() {
-  return <path d={`M8 ${GROUND + 2}Q${W / 2} ${GROUND - 4} ${W - 8} ${GROUND + 2}`} opacity={0.45} />;
+  return (
+    <>
+      <path d={FENCE} strokeWidth={1.2} opacity={0.22} />
+      <path d={TUFTS} strokeWidth={1.2} opacity={0.5} />
+      <path d={`M8 ${GROUND + 2}Q${W / 2} ${GROUND - 4} ${W - 8} ${GROUND + 2}`} opacity={0.45} />
+    </>
+  );
 }
 
 /** The ghost of the app icon: a sheet with a wavy hem and two tall eyes. Its hem sits at (x, y). */

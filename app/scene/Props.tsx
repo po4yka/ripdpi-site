@@ -3,6 +3,7 @@ import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 
+import { Shadow } from "./Ghost";
 import { hash, usePalette, useSceneTime } from "./kit";
 
 /** A brick tower, as the wall of the app's Wall and Connect scenes: paper bricks drawn in ink. */
@@ -91,7 +92,9 @@ export function Globe({ x, scale = 1 }: { x: number; scale?: number }) {
   // The globe turns slowly, as the app's does.
   useFrame(() => void (lines.current.rotation.y = time.current * 0.45));
   return (
-    <group position={[x, 0, 0]} scale={scale}>
+    // The ball's moon shadow is a hard dark disc that reads as a pit, so the globe casts none and stands on a soft one.
+    <group position={[x, 0, 0]} scale={scale} userData={{ noCast: true }}>
+      <Shadow x={0} w={1.5} d={0.6} />
       <mesh position={[0, 2.4, 0]}>
         <sphereGeometry args={[1.1, 32, 20]} />
         <meshStandardMaterial color={palette.paper} roughness={0.7} />

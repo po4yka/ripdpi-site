@@ -359,6 +359,70 @@ export function Grove() {
   return GROVE.map(([x, z, scale], i) => <Tree key={x} x={x} z={z} scale={scale} seed={11 + i * 13} far />);
 }
 
+/** The two hills of the app's backdrop (SceneProps.kt hill), far behind the fence: flat shapes that the fog takes. */
+const HILLS = [
+  { z: -40, base: 5, amp: 3, length: 15, phase: 1 },
+  { z: -27, base: 2.4, amp: 1.7, length: 10, phase: 3 },
+];
+
+export function Hills() {
+  const palette = usePalette();
+  const shapes = useMemo(
+    () =>
+      HILLS.map(({ base, amp, length, phase }) => {
+        const s = new THREE.Shape().moveTo(FROM - 40, 0);
+        for (let x = FROM - 40; x <= TO + 40; x += 2)
+          s.lineTo(x, base + amp * Math.sin(x / length + phase) + amp * 0.4 * Math.sin((x / length) * 2.3 + phase * 2));
+        return new THREE.ShapeGeometry(s.lineTo(TO + 40, 0));
+      }),
+    [],
+  );
+  useEffect(() => () => shapes.forEach((s) => s.dispose()), [shapes]);
+  return (
+    <group userData={{ noShadow: true }}>
+      {HILLS.map(({ z }, i) => (
+        <mesh key={z} geometry={shapes[i]} position-z={z}>
+          <meshBasicMaterial color={palette.night} />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
+/** Dust in the moonlight: a few motes that hang over the route and drift, each on its own slow path. */
+export function Dust() {
+  const palette = usePalette();
+  const time = useSceneTime();
+  const geometry = useMemo(() => {
+    const n = 320;
+    const pos = new Float32Array(n * 3);
+    for (let i = 0; i < n; i++) pos.set([FROM + hash(i + 40) * (TO - FROM), 0.4 + hash(i + 41000) * 6, -6 + hash(i + 42000) * 11], i * 3);
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+    g.setAttribute("seed", new THREE.BufferAttribute(Float32Array.from({ length: n }, (_, i) => hash(i + 43000)), 1));
+    return g;
+  }, []);
+  const material = useMemo(
+    () =>
+      new THREE.ShaderMaterial({
+        transparent: true,
+        depthWrite: false,
+        uniforms: { color: { value: palette.nightLight }, time: { value: 0 }, dpr: { value: 1 } },
+        vertexShader:
+          "attribute float seed; uniform float time; uniform float dpr; varying float vLight; void main() { vec3 p = position + vec3(sin(time * 0.13 + seed * 50.0) * 0.6, sin(time * 0.1 + seed * 80.0) * 0.3, cos(time * 0.11 + seed * 30.0) * 0.5); vec4 mv = modelViewMatrix * vec4(p, 1.0); vLight = 0.32 * (0.6 + 0.4 * sin(time * 0.5 + seed * 60.0)) * smoothstep(55.0, 25.0, -mv.z); gl_PointSize = max(1.0, 34.0 / -mv.z) * dpr; gl_Position = projectionMatrix * mv; }",
+        fragmentShader:
+          "uniform vec3 color; varying float vLight; void main() { float edge = 1.0 - smoothstep(0.2, 0.5, length(gl_PointCoord - 0.5)); gl_FragColor = vec4(color, vLight * edge);\n#include <colorspace_fragment>\n}",
+      }),
+    [palette],
+  );
+  useEffect(() => () => (geometry.dispose(), material.dispose()), [geometry, material]);
+  useFrame(({ gl }) => {
+    material.uniforms.time!.value = time.current;
+    material.uniforms.dpr!.value = gl.getPixelRatio();
+  });
+  return <points geometry={geometry} material={material} frustumCulled={false} renderOrder={2} />;
+}
+
 /** Bands of ground mist that drift along the route, between the stations and the camera. */
 export function Mist() {
   const palette = usePalette();
