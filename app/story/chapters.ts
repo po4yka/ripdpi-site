@@ -11,17 +11,17 @@ export interface Chapter {
 // The story follows the app's onboarding scenes (RIPDPI app/.../ui/screens/onboarding/scenes), laid out left to
 // right as one landscape. Order matters: the scene reads chapters by index (see app/story/progress.ts).
 export const CHAPTERS: readonly Chapter[] = [
-  { id: "rip", caption: "R.I.P. DPI", note: "Network-path toolkit for Android", station: 0 },
+  { id: "rip", caption: "R.I.P. DPI", note: "Find why a site fails on your network. Fix it on the phone.", station: 0 },
   {
     id: "wall",
-    caption: "Everything gets scanned.",
+    caption: "Every packet, scanned.",
     note: "Deep packet inspection stops plain packets at the wall.",
     station: 18,
   },
-  { id: "checkpoint", caption: "Names, sealed.", note: "Encrypted DNS: DoH, DoT, DNSCrypt, DoQ.", station: 36 },
+  { id: "checkpoint", caption: "Names, sealed.", note: "Encrypted DNS. The checkpoint cannot read where you go.", station: 36 },
   { id: "trouble", caption: "Find the break.", note: "Diagnostics show where the path fails.", station: 54 },
   { id: "connect", caption: "One tap.", note: "A local VPN or proxy. Your packets pass as ghosts.", station: 72 },
-  { id: "night", caption: "Always on.", note: "Relays you control. Ours are invite-only.", station: 92 },
+  { id: "night", caption: "Always on.", note: "Remembers each network. Follows every handover.", station: 92 },
   { id: "get", caption: "Get RIPDPI", station: 92 },
 ];
 

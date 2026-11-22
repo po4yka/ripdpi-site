@@ -32,12 +32,12 @@ One scroll, one night, one 3D landscape. The page retells the onboarding of the 
 
 | Chapter | Caption | What it says |
 | --- | --- | --- |
-| `rip` | R.I.P. DPI | A network-path toolkit for Android |
-| `wall` | Everything gets scanned. | Deep packet inspection stops plain packets at the wall |
-| `checkpoint` | Names, sealed. | Encrypted DNS: DoH, DoT, DNSCrypt, DoQ |
+| `rip` | R.I.P. DPI | Find why a site fails on your network, and fix it on the phone |
+| `wall` | Every packet, scanned. | Deep packet inspection stops plain packets at the wall |
+| `checkpoint` | Names, sealed. | Encrypted DNS: the checkpoint cannot read where you go |
 | `trouble` | Find the break. | Diagnostics show where the path fails |
 | `connect` | One tap. | A local VPN or proxy |
-| `night` | Always on. | Relays you control; ours are invite-only |
+| `night` | Always on. | Remembers each network and follows every handover |
 | `get` | Get RIPDPI | The download |
 
 The captions live in [`app/story/chapters.ts`](app/story/chapters.ts).
