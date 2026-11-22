@@ -117,12 +117,62 @@ export function Phone({ x, h = 3.2, children }: { x: number; h?: number; childre
 }
 
 /** A small app mark: a rounded tile in the mid tone, as the apps of the Wall scene. */
-export function AppMark({ position }: { position: [number, number, number] }) {
+export function AppMark({ position, glyph = 0 }: { position: [number, number, number]; glyph?: number }) {
   const palette = usePalette();
+  // Unlit, as the text of the board: a sign must read on a tile that faces away from the moon.
+  const paper = <meshBasicMaterial color={palette.paper} />;
+  // The sign on the tile, as the apps of the app's scene carry one: a bubble, a play mark, a ring, a letter, a star.
+  const signs = [
+    <mesh key="bubble">
+      <circleGeometry args={[0.19, 24]} />
+      {paper}
+    </mesh>,
+    <mesh key="play" rotation-z={-Math.PI / 2}>
+      <circleGeometry args={[0.21, 3]} />
+      {paper}
+    </mesh>,
+    <mesh key="ring">
+      <ringGeometry args={[0.11, 0.2, 24]} />
+      {paper}
+    </mesh>,
+    <mesh key="letter">
+      <planeGeometry args={[0.38, 0.26]} />
+      {paper}
+    </mesh>,
+    <mesh key="star" rotation-z={Math.PI / 4}>
+      <circleGeometry args={[0.21, 4]} />
+      {paper}
+    </mesh>,
+  ];
   return (
-    <RoundedBox args={[0.7, 0.7, 0.2]} radius={0.12} position={position}>
-      <meshStandardMaterial color={palette.mid} roughness={0.6} />
-    </RoundedBox>
+    <group position={position}>
+      <RoundedBox args={[0.7, 0.7, 0.2]} radius={0.12}>
+        <meshStandardMaterial color={palette.mid} roughness={0.6} />
+      </RoundedBox>
+      <group position={[0, 0, 0.115]}>{signs[glyph % signs.length]}</group>
+    </group>
+  );
+}
+
+/**
+ * The key of the tunnel, as it shows on the device's screen (ConnectScene.kt): a bow, a shaft and two teeth. The
+ * station gives the material, so it can light the key and let it breathe.
+ */
+export function Key({ material }: { material: THREE.Material }) {
+  return (
+    <group>
+      <mesh position={[-0.2, 0, 0]} material={material}>
+        <ringGeometry args={[0.09, 0.17, 28]} />
+      </mesh>
+      <mesh position={[0.15, 0, 0]} material={material}>
+        <planeGeometry args={[0.4, 0.07]} />
+      </mesh>
+      {[0.2, 0.31].map((x) => (
+        <mesh key={x} position={[x, -0.09, 0]} material={material}>
+          <planeGeometry args={[0.07, 0.13]} />
+        </mesh>
+      ))}
+    </group>
   );
 }
 

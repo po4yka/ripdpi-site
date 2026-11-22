@@ -1,4 +1,4 @@
-import { Line, Text } from "@react-three/drei";
+import { Line, RoundedBox, Text } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
@@ -8,7 +8,7 @@ import { Crow, type CrowState } from "./Crow";
 import { burst, crossed } from "./Effects";
 import { Ghost, Shadow, useGhostState } from "./Ghost";
 import { hash, local, pointer, smoothstep, toPointer, useChapter, usePalette, useSceneTime } from "./kit";
-import { AppMark, BrickTower, Globe, Lantern, Lens, Phone, SealedName } from "./Props";
+import { AppMark, BrickTower, Globe, Key, Lantern, Lens, Phone, SealedName } from "./Props";
 import { FONT, Tomb, TOMB_FRONT, TOMB_H, type TombState } from "./Tomb";
 import { Tree } from "./Scenery";
 
@@ -116,22 +116,27 @@ export function WallStation() {
     g.translate(0, -BEAM / 2, 0);
     return g;
   }, []);
-  const beamFade = useMemo(() => {
-    const canvas = document.createElement("canvas");
-    canvas.width = 4;
-    canvas.height = 128;
-    const g = canvas.getContext("2d")!;
-    const grad = g.createLinearGradient(0, 0, 0, 128);
-    // An alpha map is read from the green channel, so the fade is in greys.
-    grad.addColorStop(0, "rgb(13,13,13)");
-    grad.addColorStop(0.75, "rgb(153,153,153)");
-    grad.addColorStop(1, "rgb(255,255,255)");
-    g.fillStyle = grad;
-    g.fillRect(0, 0, 4, 128);
-    return new THREE.CanvasTexture(canvas);
-  }, []);
+  // The beam as a volume of light: faint at the lens, strongest near the ground, and soft at its sides, where the
+  // eye looks along its surface and not through it.
+  const beamLight = useMemo(
+    () =>
+      new THREE.ShaderMaterial({
+        transparent: true,
+        depthWrite: false,
+        toneMapped: false,
+        side: THREE.DoubleSide,
+        blending: THREE.AdditiveBlending,
+        uniforms: { tint: { value: palette.danger } },
+        vertexShader:
+          "varying vec3 vN; varying vec3 vV; varying float vAlong; void main() { vec4 mv = modelViewMatrix * vec4(position, 1.0); vN = normalMatrix * normal; vV = -mv.xyz; vAlong = 1.0 - uv.y; gl_Position = projectionMatrix * mv; }",
+        fragmentShader:
+          "uniform vec3 tint; varying vec3 vN; varying vec3 vV; varying float vAlong; void main() { float facing = abs(dot(normalize(vN), normalize(vV))); float a = 0.3 * mix(0.1, 1.0, vAlong * vAlong) * pow(facing, 1.5) * (1.0 - smoothstep(0.9, 1.0, vAlong)); gl_FragColor = vec4(tint, a);\n#include <colorspace_fragment>\n}",
+      }),
+    [palette],
+  );
+  useEffect(() => () => beamLight.dispose(), [beamLight]);
   const packets = useRef<(THREE.Group | null)[]>([]);
-  const packetMats = useRef<(THREE.MeshBasicMaterial | null)[]>([]);
+  const packetMats = useRef<(THREE.MeshStandardMaterial | null)[]>([]);
   const riders = [useGhostState({ position: [0, 0, 0], scale: 0.42 }), useGhostState({ position: [0, 0, 0], scale: 0.42 })];
   const cone = useRef<THREE.Mesh>(null!);
   const wasStopped = useRef([true, true, true]);
@@ -168,7 +173,10 @@ export function WallStation() {
       // It grows out of the apps and shrinks away at the wall: no packet appears or goes by a cut.
       pk.scale.setScalar(smoothstep(0, 0.05, u) * (1 - smoothstep(0.88, 1, u)));
       const m = packetMats.current[i];
-      if (m) m.color.copy(palette.paper).lerp(palette.dangerGlow, smoothstep(0.93, 1, run));
+      // A stopped packet turns to the danger colour and glows with it.
+      const caught = smoothstep(0.93, 1, run);
+      if (m) m.color.copy(palette.paper).lerp(palette.danger, caught);
+      if (m) m.emissive.copy(palette.dangerGlow).multiplyScalar(caught);
       if (stopped && !wasStopped.current[i]) burst(SPOT.set(x + 0.3, 0.4, z), palette.dangerGlow, 3, { speed: 2.2, size: 0.1, span: 0.6 });
       wasStopped.current[i] = stopped;
       // The window is shorter than the gap between packets, so the sweep plays between two of them.
@@ -204,7 +212,7 @@ export function WallStation() {
         [-0.6, 2],
         [0.7, 1.9],
       ].map(([dx, y], i) => (
-        <AppMark key={i} position={[x0 - 6 + dx!, y!, 0.5]} />
+        <AppMark key={i} glyph={i} position={[x0 - 6 + dx!, y!, 0.5]} />
       ))}
       <BrickTower x={wallX} />
       <Shadow x={wallX} w={2.2} d={1.4} />
@@ -229,27 +237,16 @@ export function WallStation() {
             <sphereGeometry args={[0.17, 16, 12]} />
             <meshBasicMaterial color={palette.dangerGlow} toneMapped={false} />
           </mesh>
-          <mesh ref={cone} geometry={beamGeometry} userData={{ noShadow: true }}>
-            <meshBasicMaterial
-              color={palette.danger}
-              alphaMap={beamFade}
-              transparent
-              opacity={0.22}
-              side={THREE.DoubleSide}
-              depthWrite={false}
-              blending={THREE.AdditiveBlending}
-            />
-          </mesh>
+          <mesh ref={cone} geometry={beamGeometry} material={beamLight} userData={{ noShadow: true }} />
           <spotLight ref={spot} color={palette.danger} intensity={260} distance={24} angle={0.2} penumbra={0.35} decay={1.8} />
           <object3D ref={spotTarget} position={[0, -7.6, 0]} />
         </group>
       </group>
       {[0, 1, 2].map((i) => (
         <group key={i} ref={(g) => void (packets.current[i] = g)}>
-          <mesh>
-            <boxGeometry args={[0.55, 0.55, 0.55]} />
-            <meshBasicMaterial ref={(m) => void (packetMats.current[i] = m)} color={palette.paper} toneMapped={false} />
-          </mesh>
+          <RoundedBox args={[SIDE, SIDE, SIDE]} radius={0.07} smoothness={3}>
+            <meshStandardMaterial ref={(m) => void (packetMats.current[i] = m)} color={palette.paper} roughness={0.8} />
+          </RoundedBox>
         </group>
       ))}
       {riders.map((r, i) => (
@@ -290,6 +287,31 @@ export function CheckpointStation() {
   const board = useRef<{ text: string } | null>(null);
   const shown = useRef("");
   const struck = useRef(Infinity);
+  // What the stamp prints (CheckpointScene.kt): a frame, a ring and a stroke across it. Drawn in greys: the
+  // material reads it as its alpha.
+  const print = useMemo(() => {
+    const canvas = document.createElement("canvas");
+    canvas.width = 384;
+    canvas.height = 256;
+    const g = canvas.getContext("2d")!;
+    g.fillStyle = "#000";
+    g.fillRect(0, 0, 384, 256);
+    g.strokeStyle = "#fff";
+    g.lineWidth = 16;
+    g.lineCap = "round";
+    g.beginPath();
+    g.roundRect(14, 14, 356, 228, 26);
+    g.stroke();
+    g.beginPath();
+    g.arc(192, 128, 62, 0, Math.PI * 2);
+    g.stroke();
+    g.beginPath();
+    g.moveTo(96, 200);
+    g.lineTo(288, 56);
+    g.stroke();
+    return new THREE.CanvasTexture(canvas);
+  }, []);
+  useEffect(() => () => print.dispose(), [print]);
 
   useFrame(() => {
     const p = local(chapter.current, at("checkpoint"));
@@ -378,7 +400,7 @@ export function CheckpointStation() {
       </group>
       <mesh position={[x0, 0.02, 0.6]} rotation-x={-Math.PI / 2}>
         <planeGeometry args={[1.8, 1.2]} />
-        <meshBasicMaterial ref={mark} color={palette.danger} transparent opacity={0} depthWrite={false} />
+        <meshBasicMaterial ref={mark} color={palette.danger} alphaMap={print} transparent opacity={0} depthWrite={false} />
       </mesh>
       <Ghost state={ghost} id={3}>
         <SealedName />
@@ -406,6 +428,7 @@ export function TroubleStation() {
   const lampAt = useMemo(() => new THREE.Vector3(), []);
   const near = useMemo(() => new THREE.Vector2(), []);
   const sparked = useRef<number | null>(null);
+  const halo = useRef<THREE.Mesh>(null!);
   // The spans past the break carry nothing: they are dull, not the colour of the signal.
   const dead = useMemo(() => palette.ink.clone().lerp(palette.nightLight, 0.25), [palette]);
   const cables = useMemo(() => {
@@ -458,6 +481,8 @@ export function TroubleStation() {
     g.lag = Math.abs(step) > 1e-4 ? Math.sign(step) * 0.5 : 0;
     g.position.set(gx, 3.6, 0.8);
     // The loose end spits a few sparks now and then, while the camera is here.
+    // The device shows the fault: a ring beats around its red dot.
+    halo.current.scale.setScalar(1 + 0.12 * Math.sin(time.current * 3));
     const beat = Math.floor(time.current / 4.8);
     if (sparked.current !== null && beat !== sparked.current && Math.abs(chapter.current - at("trouble") - 0.4) < 0.7) {
       burst(SPOT.set(posts[BREAK - 1]! + 1.1, 1.05, 0), palette.dangerGlow, 3, { speed: 1.8, size: 0.08, span: 0.6 });
@@ -471,6 +496,10 @@ export function TroubleStation() {
         <mesh>
           <circleGeometry args={[0.3, 24]} />
           <meshBasicMaterial color={palette.dangerGlow} toneMapped={false} />
+        </mesh>
+        <mesh ref={halo}>
+          <ringGeometry args={[0.42, 0.47, 40]} />
+          <meshBasicMaterial color={palette.dangerGlow} toneMapped={false} transparent opacity={0.7} />
         </mesh>
       </Phone>
       {cables.map((pts, i) => (
@@ -545,6 +574,8 @@ export function ConnectStation() {
   useEffect(() => () => glass.dispose(), [glass]);
   const riders = [0, 1, 2, 3].map(() => useGhostState({ position: [0, 0, 0], scale: 0.32, still: true })); // eslint-disable-line react-hooks/rules-of-hooks -- fixed count
   const presser = useGhostState({ position: [x0 - 7.2, 0.9, 1.4] });
+  const keyLight = useMemo(() => new THREE.MeshBasicMaterial({ color: palette.carve, toneMapped: false }), [palette]);
+  useEffect(() => () => keyLight.dispose(), [keyLight]);
   const spark = useRef<THREE.Mesh>(null!);
   const tip = useRef<THREE.Mesh>(null!);
   const holes = useRef<(THREE.Mesh | null)[]>([]);
@@ -581,6 +612,8 @@ export function ConnectStation() {
     g.lag = press * 0.6;
     g.open = 1 - press * 0.55;
     g.look = 1;
+    // The key lights on the device when the tunnel is through to the open internet.
+    keyLight.color.copy(palette.carve).lerp(palette.signalGlow, smoothstep(0.85, 1, grown));
     // A bright point leads the tunnel while it grows.
     tip.current.scale.setScalar(smoothstep(0, 0.03, grown) * (1 - smoothstep(0.95, 1, grown)));
     curve.getPointAt(grown, tip.current.position);
@@ -609,10 +642,9 @@ export function ConnectStation() {
             <ringGeometry args={[0.38, 0.55, 32]} />
             <meshBasicMaterial ref={button} color={palette.mid} toneMapped={false} />
           </mesh>
-          <mesh position={[0, -0.9, 0]}>
-            <planeGeometry args={[0.7, 0.12]} />
-            <meshBasicMaterial color={palette.signalGlow} toneMapped={false} />
-          </mesh>
+          <group position={[0, -0.9, 0]} scale={1.7}>
+            <Key material={keyLight} />
+          </group>
         </Phone>
       </group>
       <mesh ref={spark} visible={false} userData={{ noShadow: true }}>
@@ -678,6 +710,8 @@ export function NightStation() {
   const ghost = useGhostState({ position: [x0, 1, 1.4] });
   const zs = useRef<((THREE.Object3D & { fillOpacity: number }) | null)[]>([]);
   const flies = useRef<(THREE.Mesh | null)[]>([]);
+  const nightKey = useMemo(() => new THREE.MeshBasicMaterial({ color: palette.signalGlow, toneMapped: false }), [palette]);
+  useEffect(() => () => nightKey.dispose(), [nightKey]);
 
   useFrame(() => {
     const t = time.current;
@@ -693,6 +727,8 @@ export function NightStation() {
       // Each letter comes out of the phone and thins away as it rises.
       z.fillOpacity = smoothstep(0, 0.15, k) * (1 - k) * 0.9;
     });
+    // The key on the sleeping phone breathes.
+    nightKey.color.copy(palette.signalGlow).multiplyScalar(0.6 + 0.4 * Math.sin(t * 2.1));
     // Fireflies drift over the grave and glow in turn.
     flies.current.forEach((f, i) => {
       if (!f) return;
@@ -709,10 +745,9 @@ export function NightStation() {
     <group>
       <Tomb state={tomb} x={x0 + 5} z={-1.5} />
       <Phone x={x0 - 6.5} h={2.6}>
-        <mesh>
-          <planeGeometry args={[0.5, 0.12]} />
-          <meshBasicMaterial color={palette.signalGlow} toneMapped={false} />
-        </mesh>
+        <group scale={1.4}>
+          <Key material={nightKey} />
+        </group>
       </Phone>
       {[0, 1, 2].map((i) => (
         <Text key={i} ref={(z) => void (zs.current[i] = z)} font={FONT} fontSize={0.5} color={palette.mid}>
