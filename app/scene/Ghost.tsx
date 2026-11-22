@@ -35,6 +35,57 @@ const gaze = new THREE.Vector2();
 const DEPTH = 0.35;
 const BEVEL = 0.22;
 
+const ghostKey = () => "ghost";
+let sheetGeometry: THREE.ExtrudeGeometry | undefined;
+
+/** One sheet for every ghost of the page: the shader moves its hem, so no ghost needs vertices of its own. */
+function sheetShape(): THREE.ExtrudeGeometry {
+  if (sheetGeometry) return sheetGeometry;
+  sheetGeometry = new THREE.ExtrudeGeometry(sheetOutline(), {
+    depth: DEPTH,
+    bevelEnabled: true,
+    bevelThickness: BEVEL,
+    bevelSize: 0.16,
+    bevelSegments: 4,
+    curveSegments: 24,
+  });
+  sheetGeometry.translate(0, 0, -DEPTH / 2);
+  return sheetGeometry;
+}
+
+/**
+ * What a ghost adds to the standard material. The hem waves and trails behind the ghost, and the normals follow it,
+ * so the moonlight on the hem stays right. A phased ghost shows only where the eye looks along its surface: an
+ * outline, as the dashed ghost of the app.
+ */
+function ghostShader(shader: THREE.WebGLProgramParametersWithUniforms, uniforms: Record<string, THREE.IUniform>): void {
+  Object.assign(shader.uniforms, uniforms);
+  shader.vertexShader = shader.vertexShader
+    .replace("#include <common>", "#include <common>\nuniform float uLag; uniform float uWave; uniform float uTurn;")
+    .replace(
+      "#include <beginnormal_vertex>",
+      `#include <beginnormal_vertex>
+      float hemAt = uTurn + position.x * 4.2;
+      float hem = max(0.0, 1.0 - position.y / 0.9);
+      float hemSlope = position.y < 0.9 ? -1.0 / 0.9 : 0.0;
+      mat3 hemMove = mat3(1.0, hem * uWave * 4.2 * cos(hemAt), 0.0, -uLag * 0.4 * hemSlope, 1.0 + hemSlope * uWave * sin(hemAt), 0.0, 0.0, 0.0, 1.0);
+      objectNormal = normalize(transpose(inverse(hemMove)) * objectNormal);`,
+    )
+    .replace(
+      "#include <begin_vertex>",
+      `#include <begin_vertex>
+      transformed.x -= uLag * 0.4 * hem;
+      transformed.y += hem * uWave * sin(hemAt);`,
+    );
+  shader.fragmentShader = shader.fragmentShader.replace("#include <common>", "#include <common>\nuniform float uPhase;").replace(
+    "#include <tonemapping_fragment>",
+    `float rim = pow(1.0 - abs(dot(normalize(normal), normalize(vViewPosition))), 1.5);
+    gl_FragColor.rgb = mix(gl_FragColor.rgb, diffuse, uPhase * 0.7);
+    gl_FragColor.a *= mix(1.0, 0.04 + 0.96 * rim, uPhase);
+    #include <tonemapping_fragment>`,
+  );
+}
+
 export interface GhostState {
   position: THREE.Vector3;
   scale: number;
@@ -93,19 +144,9 @@ export function Ghost({
 }) {
   const palette = usePalette();
   const time = useSceneTime();
-  const geometry = useMemo(() => {
-    const g = new THREE.ExtrudeGeometry(sheetOutline(), {
-      depth: DEPTH,
-      bevelEnabled: true,
-      bevelThickness: BEVEL,
-      bevelSize: 0.16,
-      bevelSegments: 4,
-      curveSegments: 14,
-    });
-    g.translate(0, 0, -DEPTH / 2);
-    return g;
-  }, []);
-  const base = useMemo(() => Float32Array.from(geometry.attributes.position!.array), [geometry]);
+  const geometry = useMemo(() => sheetShape(), []);
+  const uniforms = useMemo(() => ({ uLag: { value: 0 }, uWave: { value: 0 }, uTurn: { value: 0 }, uPhase: { value: 0 } }), []);
+  const compile = useMemo(() => (shader: THREE.WebGLProgramParametersWithUniforms) => ghostShader(shader, uniforms), [uniforms]);
   const halo = useMemo(() => radialTexture(), []);
   const group = useRef<THREE.Group>(null!);
   const body = useRef<THREE.Group>(null!);
@@ -133,23 +174,15 @@ export function Ghost({
     body.current.rotation.z = -lag * 0.14;
     body.current.scale.set(1 + speed * 0.05, 1 - speed * 0.05, 1);
 
-    // The hem waves, faster when the ghost moves, and trails behind it.
-    // Only for a ghost the camera can see: the hem is thousands of vertices.
-    const pos = geometry.attributes.position as THREE.BufferAttribute;
-    const wave = 0.07 + speed * 0.06;
-    const count = Math.abs(s.position.x - frame.camera.position.x) < 36 ? pos.count : 0;
-    for (let i = 0; i < count; i++) {
-      const x = base[i * 3]!;
-      const y = base[i * 3 + 1]!;
-      const hem = Math.max(0, 1 - y / 0.9);
-      pos.setX(i, x - lag * 0.4 * hem);
-      pos.setY(i, y + hem * wave * Math.sin(t * (3 + speed * 4) + x * 4.2 + id));
-    }
-    pos.needsUpdate = count > 0;
+    // The hem waves, faster when the ghost moves, and trails behind it (see `ghostShader`).
+    uniforms.uLag.value = lag;
+    uniforms.uWave.value = 0.07 + speed * 0.06;
+    uniforms.uTurn.value = t * (3 + speed * 4) + id;
 
-    // Phasing: the sheet empties to a faint outline, as the dashed ghost does in the app.
-    sheet.current.opacity = s.fade * (1 - s.phase * 0.85);
-    const clear = sheet.current.opacity < 0.99;
+    // Phasing: the sheet empties to its outline, as the dashed ghost does in the app.
+    uniforms.uPhase.value = s.phase;
+    sheet.current.opacity = s.fade;
+    const clear = s.fade < 0.99 || s.phase > 0.01;
     if (sheet.current.transparent !== clear) {
       sheet.current.transparent = clear;
       // three.js compiles opacity out of an opaque material, so the shader must change with the flag.
@@ -201,6 +234,9 @@ export function Ghost({
             emissive={palette.sheet}
             emissiveIntensity={0.28}
             roughness={0.85}
+            onBeforeCompile={compile}
+            // Every ghost compiles to the same program.
+            customProgramCacheKey={ghostKey}
           />
         </mesh>
         <group ref={eyes} position={[0, 2.2, front]}>
