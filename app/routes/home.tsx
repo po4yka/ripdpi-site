@@ -4,7 +4,7 @@ import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { lazy, Suspense, useRef, useState } from "react";
 
 import { useHydrated, useReducedMotion, useWebGL2 } from "~/lib/environment";
-import { CHAPTERS, RELEASES_URL, REPO_URL, type Chapter } from "~/story/chapters";
+import { CHAPTERS, DESCRIPTION, RELEASES_URL, REPO_URL, SITE, TITLE, type Chapter } from "~/story/chapters";
 import { Details } from "~/story/Details";
 import { Drawing } from "~/story/Drawings";
 import { FAQ } from "~/story/content";
@@ -16,16 +16,12 @@ gsap.registerPlugin(ScrollTrigger, useGSAP);
 // three.js and R3F load only in the browser, after the prerendered page is on screen.
 const StoryScene = lazy(() => import("~/scene/StoryScene"));
 
-const SITE = "https://ripdpi.dev";
-const TITLE = "RIPDPI: network-path toolkit for Android";
-const DESCRIPTION =
-  "RIPDPI finds out why a site does not open on your network, applies TCP, TLS and QUIC strategies on the device, and routes through relays you control.";
-
 export function meta() {
   return [
     { title: TITLE },
     { name: "description", content: DESCRIPTION },
     { tagName: "link", rel: "canonical", href: `${SITE}/` },
+    { tagName: "link", rel: "alternate", type: "text/markdown", href: "/index.md" },
     { property: "og:type", content: "website" },
     { property: "og:title", content: TITLE },
     { property: "og:description", content: DESCRIPTION },

@@ -21,9 +21,16 @@ export const CHAPTERS: readonly Chapter[] = [
   { id: "checkpoint", caption: "Names, sealed.", note: "Encrypted DNS. The checkpoint cannot read where you go.", station: 36 },
   { id: "trouble", caption: "Find the break.", note: "Diagnostics show where the path fails.", station: 54 },
   { id: "connect", caption: "One tap.", note: "A local VPN or proxy. Your packets pass as ghosts.", station: 72 },
-  { id: "night", caption: "Always on.", note: "Remembers each network. Follows every handover.", station: 92 },
-  { id: "get", caption: "Get RIPDPI", station: 92 },
+  { id: "barrier", caption: "Straight through.", note: "Packet strategies, applied on the device.", station: 90 },
+  { id: "relay", caption: "Bring your relay.", note: "Relays you control. Ours are invite-only.", station: 108 },
+  { id: "night", caption: "Always on.", note: "Remembers each network. Follows every handover.", station: 128 },
+  { id: "get", caption: "Get RIPDPI", station: 128 },
 ];
 
 export const REPO_URL = "https://github.com/po4yka/RIPDPI";
 export const RELEASES_URL = `${REPO_URL}/releases/latest`;
+
+export const SITE = "https://ripdpi.dev";
+export const TITLE = "RIPDPI: network-path toolkit for Android";
+export const DESCRIPTION =
+  "RIPDPI finds out why a site does not open on your network, applies TCP, TLS and QUIC strategies on the device, and routes through relays you control.";

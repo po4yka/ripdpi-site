@@ -15,3 +15,5 @@
 - [Website](https://ripdpi.dev/): the story of the app and its common questions
 - [Source code](https://github.com/po4yka/RIPDPI): the repository and its README
 - [Download](https://github.com/po4yka/RIPDPI/releases/latest): the latest release for Android
+- [Page as Markdown](https://ripdpi.dev/index.md): the whole landing page as Markdown
+- [Agent skill: install RIPDPI](https://ripdpi.dev/.well-known/agent-skills/install-ripdpi/SKILL.md): pick, verify and install the APK, and choose a mode
