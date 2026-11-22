@@ -16,6 +16,7 @@ Landing page for the RIPDPI Android app and its invite-only relay service, serve
 - `npm run dev`: local server.
 - `npm run check`: typegen, `tsc`, ESLint, and production build. Run it before every commit.
 - TypeScript stays on 6.0 until typescript-eslint supports 7.
+- Security headers are in `public/_headers`. The build runs `scripts/csp-hashes.mjs`, which puts the hashes of the prerendered inline scripts into the CSP. After a change that loads a new kind of resource, serve the build with the `ripdpi-site-worker` preview (`wrangler dev`) and check the browser console for CSP violations; `npm run dev` does not send these headers.
 - CI (`.github/workflows/ci.yml`) runs commitlint on PR commits, `npm run check`, `npm audit` and a Wrangler dry run. A push to `main` deploys `build/client/` with `wrangler deploy` (config in `wrangler.jsonc`); the `production` environment needs the `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` secrets. Lint workflow changes with `actionlint` and `zizmor`.
 
 ## Skills
