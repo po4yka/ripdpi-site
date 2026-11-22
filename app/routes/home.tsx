@@ -45,6 +45,9 @@ export function meta() {
             downloadUrl: RELEASES_URL,
             sameAs: REPO_URL,
             license: "https://www.gnu.org/licenses/agpl-3.0.html",
+            isAccessibleForFree: true,
+            offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+            author: { "@type": "Person", name: "po4yka", url: "https://github.com/po4yka" },
           },
           {
             "@type": "FAQPage",

@@ -64,13 +64,13 @@ The one action an agent can do for a user here is "install RIPDPI". Publish it a
 - Done as resource routes in `app/routes/skill.ts`; the skill text is `app/agents/install-ripdpi.md`, and the digest is computed at prerender. `SKILL.md`: how to get the latest APK from GitHub Releases, check the Android version (8.1+), choose VPN mode or proxy mode, where to read the docs. No relay details (content rules).
 - `index.json` per Agent Skills Discovery RFC v0.2.0: `$schema`, `skills[]` with `name`, `type: "skill-md"`, `description`, `url`, `digest` (`sha256:` + hex of the raw SKILL.md bytes).
 
-### 6. ARD manifest (30 min, mostly for the score)
+### 6. ARD manifest (done)
 
-`public/.well-known/ai-catalog.json` with `specVersion`, `host`, and entries for `llms.txt`, `index.md` and the skill index, each with a `urn:air:ripdpi.dev:...` id, `type`, `url`, and 2-5 `representativeQueries` ("Android DPI bypass app", "how to install RIPDPI"). Needs `Content-Type: application/json` and `Access-Control-Allow-Origin: *` for that path in `_headers`.
+`app/routes/ard.ts` prerenders one manifest (ARD v0.9 draft) to `/.well-known/ard.json`, the current path, and to `/.well-known/ai-catalog.json`, the predecessor path that the scanner checks. It has two entries: the install skill (`application/agent-skills+md`) and the Markdown page (`text/markdown`), each with a `urn:air:ripdpi.dev:...` identifier and four `representativeQueries`. `_headers` sends `Access-Control-Allow-Origin: *` for both paths, and the `Link` header on `/` adds `rel="ard"`.
 
-### 7. JSON-LD polish (15 min)
+### 7. JSON-LD polish (done)
 
-In `app/routes/home.tsx`: add `offers: { "@type": "Offer", price: "0", priceCurrency: "USD" }` (Google needs it for SoftwareApplication rich results), `isAccessibleForFree: true`, `softwareVersion` from the latest release at build time if cheap, and an `author` Person. Validate with the Schema.org validator.
+`SoftwareApplication` in `app/routes/home.tsx` now has `isAccessibleForFree`, a free `Offer`, and `author` as the GitHub handle `po4yka`. `softwareVersion` is left out: a build-time value goes stale between deploys.
 
 ### 8. Explicit AI crawler rules (10 min, optional)
 

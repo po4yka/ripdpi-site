@@ -4,5 +4,12 @@ import type { Config } from "@react-router/dev/config";
 // are resource routes for agents, prerendered to static files.
 export default {
   ssr: false,
-  prerender: ["/", "/index.md", "/.well-known/agent-skills/index.json", "/.well-known/agent-skills/install-ripdpi/SKILL.md"],
+  prerender: [
+    "/",
+    "/index.md",
+    "/.well-known/agent-skills/index.json",
+    "/.well-known/agent-skills/install-ripdpi/SKILL.md",
+    "/.well-known/ard.json",
+    "/.well-known/ai-catalog.json",
+  ],
 } satisfies Config;
