@@ -28,7 +28,7 @@
 
 ## What it is
 
-One scroll, one night, one 3D landscape. The page retells the onboarding of the RIPDPI app as a walk past film-set props: the ghost of the app icon, the R.I.P. DPI tombstone, the wall with its scanner, the checkpoint, the posts with lamps, the tunnel. Each stop is a chapter:
+One scroll, one night, one 3D landscape. The page retells the onboarding of the RIPDPI app as a walk past film-set props: the ghost of the app icon, the R.I.P. DPI tombstone, the wall with its scanner, the checkpoint, the posts with lamps, the tunnel, the barriers, the crate. Each stop is a chapter:
 
 | Chapter | Caption | What it says |
 | --- | --- | --- |
@@ -37,6 +37,8 @@ One scroll, one night, one 3D landscape. The page retells the onboarding of the 
 | `checkpoint` | Names, sealed. | Encrypted DNS: the checkpoint cannot read where you go |
 | `trouble` | Find the break. | Diagnostics show where the path fails |
 | `connect` | One tap. | A local VPN or proxy |
+| `barrier` | Straight through. | Packet strategies, applied on the device |
+| `relay` | Bring your relay. | Relays you control; ours are invite-only |
 | `night` | Always on. | Remembers each network and follows every handover |
 | `get` | Get RIPDPI | The download |
 

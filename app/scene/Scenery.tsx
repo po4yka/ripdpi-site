@@ -5,7 +5,7 @@ import * as THREE from "three";
 import { arc, hash, noiseTexture, smoothstep, usePalette, useSceneTime } from "./kit";
 
 const FROM = -30;
-const TO = 125;
+const TO = 167;
 
 /** Where the moon stands in the sky, as a direction from the viewer. The moonlight comes from it. */
 export const MOON_DIR = new THREE.Vector3(0.42, 0.36, -0.83).normalize();

@@ -698,6 +698,219 @@ export function ConnectStation() {
   );
 }
 
+/** Where the three barriers stand, from the station, and the size of one. */
+const DOORS = [-3.6, 0, 3.6];
+const DOOR_W = 1.5;
+const DOOR_H = 3.6;
+const DOOR_D = 1.8;
+/** The crack of a passed barrier, down its front from under the lamp, in shares of its width and height. */
+const DOOR_CRACK: [number, number, number][] = [
+  [0, 0],
+  [0.14, -0.13],
+  [-0.08, -0.28],
+  [0.11, -0.44],
+  [-0.03, -0.6],
+].map(([x, y]) => [x! * DOOR_W, y! * DOOR_H, 0]);
+
+/**
+ * The barriers (BarrierScene.kt). Three barriers stand on the road to the open internet, each with the eye of a
+ * scanner. The ghost does not open a barrier: it goes through it, the eye turns to the signal, and the barrier cracks.
+ */
+export function BarrierStation() {
+  const palette = usePalette();
+  const chapter = useChapter();
+  const x0 = station("barrier");
+  const ghost = useGhostState({ position: [x0 - 6.4, 1.1, 0.2] });
+  const lamps = useRef<(THREE.MeshBasicMaterial | null)[]>([]);
+  const cracks = useRef<(THREE.Group | null)[]>([]);
+  const passed = useRef(DOORS.map(() => ({ current: Infinity })));
+
+  useFrame(() => {
+    const p = local(chapter.current, at("barrier"));
+    const walk = smoothstep(0.04, 0.6, p);
+    const g = ghost.current;
+    const x = mix(x0 - 6.4, x0 + 5.6, walk);
+    g.position.x = x;
+    g.lag = Math.sin(walk * Math.PI) * 0.7;
+    g.look = 1;
+    let inside = 0;
+    DOORS.forEach((dx, i) => {
+      const door = x0 + dx;
+      inside = Math.max(inside, smoothstep(door - 1.7, door - 1, x) * (1 - smoothstep(door + 1, door + 1.7, x)));
+      const through = smoothstep(door - 0.2, door + 1.4, x);
+      lamps.current[i]?.color.copy(palette.dangerGlow).lerp(palette.signalGlow, through);
+      const crack = cracks.current[i];
+      if (crack) crack.visible = through > 0.01;
+      crack?.scale.setY(Math.max(0.01, through));
+      // Chips fall as the crack opens.
+      if (crossed(passed.current[i]!, through, 0.3)) {
+        burst(SPOT.set(door + 0.2, DOOR_H * 0.6, DOOR_D / 2 + 0.1), palette.stone, 5, { speed: 1.6, size: 0.08, gravity: 9, span: 1.6 });
+      }
+    });
+    g.phase = inside;
+  });
+
+  return (
+    <group>
+      {DOORS.map((dx, i) => (
+        <group key={dx} position={[x0 + dx, 0, 0]}>
+          <mesh position={[0, 0.12, 0]}>
+            <boxGeometry args={[DOOR_W + 0.5, 0.24, DOOR_D + 0.4]} />
+            <meshStandardMaterial color={palette.ink} roughness={0.6} metalness={0.3} />
+          </mesh>
+          <RoundedBox args={[DOOR_W, DOOR_H, DOOR_D]} radius={0.1} smoothness={3} position={[0, DOOR_H / 2 + 0.2, 0]}>
+            <meshStandardMaterial color={palette.stone} roughness={0.85} />
+          </RoundedBox>
+          {/* The eye of the barrier's scanner, in a hood. */}
+          <group position={[0, DOOR_H - 0.35, DOOR_D / 2 + 0.03]}>
+            <mesh>
+              <torusGeometry args={[0.24, 0.06, 8, 28]} />
+              <meshStandardMaterial color={palette.ink} roughness={0.5} metalness={0.4} />
+            </mesh>
+            <mesh userData={{ noShadow: true }}>
+              <sphereGeometry args={[0.18, 16, 12]} />
+              <meshBasicMaterial ref={(m) => void (lamps.current[i] = m)} color={palette.dangerGlow} toneMapped={false} />
+            </mesh>
+          </group>
+          <group ref={(c) => void (cracks.current[i] = c)} position={[0, DOOR_H - 0.75, DOOR_D / 2 + 0.02]} visible={false}>
+            <Line points={DOOR_CRACK} color={palette.carve} lineWidth={2.5} />
+          </group>
+          <Shadow x={x0 + dx} w={2.2} d={1.2} />
+        </group>
+      ))}
+      <Ghost state={ghost} id={7} />
+      <Globe x={x0 + 7.6} />
+    </group>
+  );
+}
+
+/** The seconds of one delivery from the crate, and the rows of the device's screen, from its middle. */
+const DELIVERY = 8;
+const ROWS = [0.95, 0, -0.95];
+
+/**
+ * The relay (ReadyScene.kt). A crate beside the device opens. A server, a route and a pair of controls leave the
+ * crate one after the other and take their rows on the screen, and each row gets its mark. The ghost watches and
+ * has nothing to do. Then the rows clear, the crate closes, and the next delivery starts.
+ */
+export function RelayStation() {
+  const palette = usePalette();
+  const time = useSceneTime();
+  const x0 = station("relay");
+  const crateX = x0 - 3.6;
+  const phoneX = x0 + 1.4;
+  const phoneH = 4.2;
+  const lid = useRef<THREE.Group>(null!);
+  const items = useRef<(THREE.Group | null)[]>([]);
+  const marks = useRef<(THREE.Mesh | null)[]>([]);
+  const ghost = useGhostState({ position: [x0 + 4.2, 1, 1.2], look: -1 });
+  const paper = useMemo(() => new THREE.MeshStandardMaterial({ color: palette.paper, roughness: 0.8 }), [palette]);
+  useEffect(() => () => paper.dispose(), [paper]);
+
+  useFrame(() => {
+    const u = (time.current / DELIVERY) % 1;
+    const clear = 1 - smoothstep(0.84, 0.92, u);
+    // The lid turns on the corner of the crate that is away from the device.
+    lid.current.rotation.z = 1.9 * smoothstep(0, 0.08, u) * (1 - smoothstep(0.92, 1, u));
+    items.current.forEach((item, i) => {
+      if (!item) return;
+      const f = smoothstep(0.1 + i * 0.2, 0.32 + i * 0.2, u);
+      const row = phoneH / 2 + 0.05 + ROWS[i]!;
+      item.position.set(mix(crateX, phoneX - 0.3, f), mix(1.5, row, f) + Math.sin(f * Math.PI) * 2, mix(0, 0.36, f));
+      // It grows out of the crate, and goes with its row when the rows clear.
+      item.scale.setScalar(smoothstep(0, 0.2, f) * clear);
+      marks.current[i]?.scale.setScalar(smoothstep(0.9, 1, f) * clear);
+    });
+  });
+
+  return (
+    <group>
+      <group position={[crateX, 0, 0]}>
+        <RoundedBox args={[2.2, 1.5, 1.8]} radius={0.05} position={[0, 0.75, 0]}>
+          <meshStandardMaterial color={palette.stone} roughness={0.9} />
+        </RoundedBox>
+        {[-0.7, 0.7].map((x) => (
+          <mesh key={x} position={[x, 0.75, 0]}>
+            <boxGeometry args={[0.14, 1.53, 1.84]} />
+            <meshStandardMaterial color={palette.ink} roughness={0.5} metalness={0.4} />
+          </mesh>
+        ))}
+        {/* The dark of the open crate. */}
+        <mesh position={[0, 1.505, 0]}>
+          <boxGeometry args={[1.9, 0.02, 1.5]} />
+          <meshStandardMaterial color={palette.ink} roughness={0.9} />
+        </mesh>
+        <group ref={lid} position={[-1.1, 1.5, 0]}>
+          <mesh position={[1.15, 0.08, 0]}>
+            <boxGeometry args={[2.3, 0.16, 1.9]} />
+            <meshStandardMaterial color={palette.stone} roughness={0.9} />
+          </mesh>
+        </group>
+      </group>
+      <Shadow x={crateX} w={2.8} d={1.2} />
+      <Phone x={phoneX} h={phoneH}>
+        {ROWS.map((y) => (
+          <mesh key={y} position={[0, y - 0.42, 0]}>
+            <planeGeometry args={[1.7, 0.03]} />
+            <meshBasicMaterial color={palette.mid} toneMapped={false} />
+          </mesh>
+        ))}
+      </Phone>
+      <Shadow x={phoneX} w={2.6} d={0.5} />
+      {/* A server. */}
+      <group ref={(g) => void (items.current[0] = g)} scale={0}>
+        <RoundedBox args={[0.7, 0.42, 0.12]} radius={0.04} material={paper} />
+        {[0.09, -0.09].map((y) => (
+          <mesh key={y} position={[0, y, 0.065]}>
+            <planeGeometry args={[0.46, 0.05]} />
+            <meshBasicMaterial color={palette.ink} />
+          </mesh>
+        ))}
+      </group>
+      {/* A route with two ends. */}
+      <group ref={(g) => void (items.current[1] = g)} scale={0}>
+        <mesh material={paper}>
+          <boxGeometry args={[0.5, 0.06, 0.06]} />
+        </mesh>
+        {[-0.28, 0.28].map((x) => (
+          <mesh key={x} position={[x, 0, 0]} material={paper}>
+            <sphereGeometry args={[0.12, 16, 12]} />
+          </mesh>
+        ))}
+      </group>
+      {/* Two controls. */}
+      <group ref={(g) => void (items.current[2] = g)} scale={0}>
+        {[
+          [0.13, -0.16],
+          [-0.13, 0.18],
+        ].map(([y, knob]) => (
+          <group key={y} position={[0, y!, 0]}>
+            <mesh material={paper}>
+              <boxGeometry args={[0.7, 0.05, 0.05]} />
+            </mesh>
+            <mesh position={[knob!, 0, 0]} material={paper}>
+              <sphereGeometry args={[0.1, 16, 12]} />
+            </mesh>
+          </group>
+        ))}
+      </group>
+      {ROWS.map((y, i) => (
+        <mesh
+          key={y}
+          ref={(m) => void (marks.current[i] = m)}
+          position={[phoneX + 0.7, phoneH / 2 + 0.05 + y, 0.3]}
+          scale={0}
+          userData={{ noShadow: true }}
+        >
+          <sphereGeometry args={[0.11, 16, 12]} />
+          <meshBasicMaterial color={palette.signalGlow} toneMapped={false} />
+        </mesh>
+      ))}
+      <Ghost state={ghost} id={8} />
+    </group>
+  );
+}
+
 /**
  * The night watch (NightScene.kt), at the grave of DPI. The phone sleeps, and its tunnel key
  * stays lit. The ghost keeps its round with a lantern.

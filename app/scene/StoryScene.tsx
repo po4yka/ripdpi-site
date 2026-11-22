@@ -23,7 +23,16 @@ import {
 } from "./kit";
 import { Cable, Fence, Grass, Ground, Mist, MOON_DIR, Sky } from "./Scenery";
 import { backOff, shotAt } from "./shots";
-import { CheckpointStation, ConnectStation, NightStation, RipStation, TroubleStation, WallStation } from "./Stations";
+import {
+  BarrierStation,
+  CheckpointStation,
+  ConnectStation,
+  NightStation,
+  RelayStation,
+  RipStation,
+  TroubleStation,
+  WallStation,
+} from "./Stations";
 
 /** The scene time of the still picture under reduced motion. */
 const STILL = 2.9;
@@ -256,6 +265,8 @@ export default function StoryScene({ animate, onReady }: { animate: boolean; onR
             <CheckpointStation />
             <TroubleStation />
             <ConnectStation />
+            <BarrierStation />
+            <RelayStation />
             <NightStation />
             {/* Only the boosted signal and danger colours exceed 1 before tone mapping, so only they bloom. */}
             <EffectComposer multisampling={quality.samples}>

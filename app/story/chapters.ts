@@ -23,8 +23,8 @@ export const CHAPTERS: readonly Chapter[] = [
   { id: "connect", caption: "One tap.", note: "A local VPN or proxy. Your packets pass as ghosts.", station: 72 },
   { id: "barrier", caption: "Straight through.", note: "Packet strategies, applied on the device.", station: 90 },
   { id: "relay", caption: "Bring your relay.", note: "Relays you control. Ours are invite-only.", station: 108 },
-  { id: "night", caption: "Always on.", note: "Remembers each network. Follows every handover.", station: 128 },
-  { id: "get", caption: "Get RIPDPI", station: 128 },
+  { id: "night", caption: "Always on.", note: "Remembers each network. Follows every handover.", station: 134 },
+  { id: "get", caption: "Get RIPDPI", station: 134 },
 ];
 
 export const REPO_URL = "https://github.com/po4yka/RIPDPI";

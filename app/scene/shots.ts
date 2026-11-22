@@ -23,6 +23,8 @@ const SHOTS: Record<string, Shot> = {
   checkpoint: { x: 1, y: 1.6, z: 13.5, lookX: 0.4, lookY: 3.6, caption: 0.4 },
   trouble: { x: -1, y: 1.6, z: 14.5, lookX: 0, lookY: 3.6 },
   connect: { x: 0.5, y: 1.8, z: 15, lookX: 1, lookY: 4.4 },
+  barrier: { x: 0, y: 1.8, z: 15, lookX: 0.8, lookY: 4.4 },
+  relay: { x: 0, y: 1.6, z: 14, lookX: 0.6, lookY: 3.8 },
   night: { x: -0.5, y: 1.5, z: 13, lookX: 0.5, lookY: 3.8 },
   get: { x: 2.5, y: 3.2, z: 19, lookX: 2.5, lookY: 6.2 },
 };
@@ -51,6 +53,10 @@ const TALL: Record<string, Partial<Shot>> = {
   trouble: { x: -2, lookX: -1 },
   // The phone, the arc and the wall: the tap and what it opens.
   connect: { x: -2, lookX: -1.5 },
+  // The three barriers, and not the globe after them.
+  barrier: { lookX: 0, z: 17 },
+  // The crate and the device: the delivery, and not the ghost that watches it.
+  relay: { x: -1.1, lookX: -1.1, z: 16 },
   night: { x: 0.5, lookX: 1.5, z: 17 },
   get: { x: 1.2, lookX: 1.2 },
 };

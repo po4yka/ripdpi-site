@@ -159,6 +159,49 @@ function ConnectDrawing() {
   );
 }
 
+function BarrierDrawing() {
+  return (
+    <>
+      <Ground />
+      {[110, 210, 310].map((x, i) => (
+        <g key={x}>
+          <rect x={x} y={150} width={40} height={GROUND - 150} rx={3} />
+          {/* The eye of a passed barrier turns to the signal, and the barrier cracks. */}
+          <circle className={i < 2 ? "signal lit" : "danger lit"} cx={x + 20} cy={166} r={5} />
+          {i < 2 && <path d={`M${x + 20} 176l6 14-9 16 8 16`} opacity={0.6} />}
+        </g>
+      ))}
+      <Ghost x={62} y={236} s={1.1} />
+      <Ghost x={230} y={236} s={1.1} outline />
+      <Globe x={424} />
+    </>
+  );
+}
+
+function RelayDrawing() {
+  return (
+    <>
+      <Ground />
+      {/* The crate, with its lid open away from the device. */}
+      <rect x={40} y={196} width={76} height={GROUND - 196} rx={2} />
+      <path d="M58 196v54M98 196v54M40 196l-22-46" />
+      {/* A route on its way from the crate to its row. */}
+      <path d="M96 176C120 110 170 96 214 132" strokeDasharray="3 5" opacity={0.6} />
+      <g transform="translate(150 112)">
+        <path d="M-12 0h24" />
+        <circle cx={-12} r={4} />
+        <circle cx={12} r={4} />
+      </g>
+      <Phone x={250} w={70} h={128}>
+        <rect x={-24} y={-48} width={24} height={14} rx={2} />
+        <circle className="signal lit" cx={20} cy={-41} r={4} />
+        <path d="M-24-26h48M-24 14h48M-24 54h48" opacity={0.45} />
+      </Phone>
+      <Ghost x={388} y={244} s={1.5} />
+    </>
+  );
+}
+
 function NightDrawing({ phone = true }: { phone?: boolean }) {
   return (
     <>
@@ -208,6 +251,8 @@ const DRAWINGS: Record<string, () => React.ReactNode> = {
   checkpoint: CheckpointDrawing,
   trouble: TroubleDrawing,
   connect: ConnectDrawing,
+  barrier: BarrierDrawing,
+  relay: RelayDrawing,
   night: () => <NightDrawing />,
   // The last chapter stands at the same place as the night watch. The download button takes the phone's corner.
   get: () => <NightDrawing phone={false} />,
