@@ -137,7 +137,7 @@ export function WallStation() {
   useEffect(() => () => beamLight.dispose(), [beamLight]);
   const packets = useRef<(THREE.Group | null)[]>([]);
   const packetMats = useRef<(THREE.MeshStandardMaterial | null)[]>([]);
-  const riders = [useGhostState({ position: [0, 0, 0], scale: 0.42 }), useGhostState({ position: [0, 0, 0], scale: 0.42 })];
+  const riders = [useGhostState({ position: [0, 0, 0], scale: 0.5 }), useGhostState({ position: [0, 0, 0], scale: 0.5 })];
   const cone = useRef<THREE.Mesh>(null!);
   const wasStopped = useRef([true, true, true]);
   // A packet stops with its face just short of the bricks, after a whole number of quarter turns.
@@ -250,7 +250,7 @@ export function WallStation() {
         </group>
       ))}
       {riders.map((r, i) => (
-        <Ghost key={i} state={r} id={10 + i} />
+        <Ghost key={i} state={r} id={10 + i} small />
       ))}
       <Globe x={x0 + 7.5} />
     </group>
@@ -690,7 +690,7 @@ export function ConnectStation() {
         );
       })}
       {riders.map((r, i) => (
-        <Ghost key={i} state={r} id={20 + i} />
+        <Ghost key={i} state={r} id={20 + i} small />
       ))}
       <Ghost state={presser} id={5} />
       <Globe x={x0 + 7.4} />

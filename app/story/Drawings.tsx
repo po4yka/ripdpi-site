@@ -5,8 +5,14 @@
  * app.css). GSAP moves the parts marked `data-bob` and `data-sweep`.
  */
 
+import { SHEET, SHEET_HALF_WIDTH, SHEET_HEM } from "./ghost";
+
 const W = 480;
 const GROUND = 250;
+/** The ghost's sheet as an SVG path, 28 wide, with the line of its hem at y = 0. */
+const SHEET_PATH = `${SHEET.map(
+  ([command, ...n]) => command + n.map((v, i) => (((i % 2 ? v - SHEET_HEM : v) * 14) / SHEET_HALF_WIDTH).toFixed(1)).join(" "),
+).join("")}Z`;
 
 function Ground() {
   return <path d={`M8 ${GROUND + 2}Q${W / 2} ${GROUND - 4} ${W - 8} ${GROUND + 2}`} opacity={0.45} />;
@@ -17,13 +23,9 @@ function Ghost({ x, y, s = 1, outline = false }: { x: number; y: number; s?: num
   return (
     <g transform={`translate(${x} ${y}) scale(${s})`}>
       <g data-bob>
-        <path
-          d="M-14 0C-14-24-11-34 0-34S14-24 14 0q-2.33 3.4-4.67 0t-4.67 0-4.67 0-4.67 0-4.67 0-4.65 0Z"
-          strokeDasharray={outline ? "3 4" : undefined}
-          fill={outline ? "none" : undefined}
-        />
-        <ellipse className="ink" cx={-4.5} cy={-20} rx={1.6} ry={3.4} />
-        <ellipse className="ink" cx={4.5} cy={-20} rx={1.6} ry={3.4} />
+        <path d={SHEET_PATH} strokeDasharray={outline ? "3 4" : undefined} fill={outline ? "none" : undefined} />
+        <ellipse className="ink" cx={-5.7} cy={-24} rx={1.7} ry={4} />
+        <ellipse className="ink" cx={5.7} cy={-24} rx={1.7} ry={4} />
       </g>
     </g>
   );
