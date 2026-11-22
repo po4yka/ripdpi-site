@@ -1,6 +1,7 @@
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
+import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 
 import { arc, hash, noiseTexture, usePalette, useSceneTime } from "./kit";
 
@@ -264,21 +265,38 @@ export function Grass() {
 export function Fence() {
   const palette = usePalette();
   const pickets = useRef<THREE.InstancedMesh>(null!);
+  const tips = useRef<THREE.InstancedMesh>(null!);
+  const posts = useRef<THREE.InstancedMesh>(null!);
   const count = Math.floor((TO - FROM) / 0.6);
+  const postCount = Math.floor(count / 10);
   useLayoutEffect(() => {
     const m = new THREE.Matrix4();
+    const top = new THREE.Vector3();
     for (let i = 0; i < count; i++) {
       const h = 1.5 + (i % 5 === 0 ? 0.4 : 0) + hash(i) * 0.1;
       // A picket leans now and then: the fence is old.
-      m.makeRotationZ((hash(i + 50) - 0.5) * (i % 7 === 3 ? 0.25 : 0.04)).scale(new THREE.Vector3(1, h, 1)).setPosition(FROM + i * 0.6, h / 2, -7);
-      pickets.current.setMatrixAt(i, m);
+      m.makeRotationZ((hash(i + 50) - 0.5) * (i % 7 === 3 ? 0.25 : 0.04));
+      // Its spear tip stands on its top end and leans with it.
+      top.set(0, h / 2 + 0.11, 0).applyMatrix4(m);
+      tips.current.setMatrixAt(i, m.clone().setPosition(FROM + i * 0.6 + top.x, h / 2 + top.y, -7));
+      pickets.current.setMatrixAt(i, m.scale(new THREE.Vector3(1, h, 1)).setPosition(FROM + i * 0.6, h / 2, -7));
     }
-    pickets.current.instanceMatrix.needsUpdate = true;
-  }, [count]);
+    // A square post between the pickets, every six units.
+    for (let i = 0; i < postCount; i++) posts.current.setMatrixAt(i, m.makeTranslation(FROM + i * 6 + 0.3, 1.05, -7));
+    for (const mesh of [pickets, tips, posts]) mesh.current.instanceMatrix.needsUpdate = true;
+  }, [count, postCount]);
   return (
     <group>
       <instancedMesh ref={pickets} args={[undefined, undefined, count]} frustumCulled={false}>
         <cylinderGeometry args={[0.035, 0.045, 1, 5]} />
+        <meshStandardMaterial color={palette.ink} roughness={0.6} metalness={0.4} />
+      </instancedMesh>
+      <instancedMesh ref={tips} args={[undefined, undefined, count]} frustumCulled={false}>
+        <coneGeometry args={[0.07, 0.22, 4]} />
+        <meshStandardMaterial color={palette.ink} roughness={0.6} metalness={0.4} />
+      </instancedMesh>
+      <instancedMesh ref={posts} args={[undefined, undefined, postCount]} frustumCulled={false}>
+        <boxGeometry args={[0.14, 2.1, 0.14]} />
         <meshStandardMaterial color={palette.ink} roughness={0.6} metalness={0.4} />
       </instancedMesh>
       {[0.35, 1.25].map((y) => (
@@ -292,13 +310,18 @@ export function Fence() {
 }
 
 /** A bare tree, as in the welcome and night scenes: a trunk and forked branches, a silhouette against the sky. */
-export function Tree({ x, z = -3, scale = 1 }: { x: number; z?: number; scale?: number }) {
+export function Tree({ x, z = -3, scale = 1, seed = 7, far = false }: { x: number; z?: number; scale?: number; seed?: number; far?: boolean }) {
   const palette = usePalette();
-  const branches = useMemo(() => {
-    const out: { from: THREE.Vector3; to: THREE.Vector3; r: number }[] = [];
+  // One geometry for the whole tree: a cylinder for each branch and a ball at each fork, which closes the joint.
+  const geometry = useMemo(() => {
+    const parts: THREE.BufferGeometry[] = [];
+    const up = new THREE.Vector3(0, 1, 0);
+    const m = new THREE.Matrix4();
     const grow = (from: THREE.Vector3, dir: THREE.Vector3, len: number, r: number, depth: number, seed: number) => {
       const to = from.clone().addScaledVector(dir, len);
-      out.push({ from, to, r });
+      m.makeRotationFromQuaternion(new THREE.Quaternion().setFromUnitVectors(up, dir)).setPosition(from.clone().add(to).multiplyScalar(0.5));
+      parts.push(new THREE.CylinderGeometry(r * 0.62, r, len, 6).applyMatrix4(m));
+      parts.push(new THREE.SphereGeometry(r * 0.62, 6, 4).translate(to.x, to.y, to.z));
       if (depth === 0) return;
       [-1, 1].forEach((side, k) => {
         const axis = new THREE.Vector3(hash(seed + 11) - 0.5, 0, 1).normalize();
@@ -306,24 +329,34 @@ export function Tree({ x, z = -3, scale = 1 }: { x: number; z?: number; scale?: 
         grow(to, d, len * (0.6 + hash(seed + k + 5) * 0.15), r * 0.62, depth - 1, seed * 3 + k);
       });
     };
-    grow(new THREE.Vector3(0, 0, 0), new THREE.Vector3(0.08, 1, 0).normalize(), 2.6, 0.18, 5, 7);
-    return out;
-  }, []);
+    grow(new THREE.Vector3(0, 0, 0), new THREE.Vector3(0.08, 1, 0).normalize(), 2.6, 0.18, 5, seed);
+    const tree = mergeGeometries(parts)!;
+    parts.forEach((p) => p.dispose());
+    return tree;
+  }, [seed]);
+  useEffect(() => () => geometry.dispose(), [geometry]);
   return (
-    <group position={[x, 0, z]} scale={scale}>
-      {branches.map(({ from, to, r }, i) => {
-        const mid = from.clone().add(to).multiplyScalar(0.5);
-        const len = from.distanceTo(to);
-        const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), to.clone().sub(from).normalize());
-        return (
-          <mesh key={i} position={mid} quaternion={q}>
-            <cylinderGeometry args={[r * 0.62, r, len * 1.04, 6]} />
-            <meshStandardMaterial color={palette.ink} roughness={1} />
-          </mesh>
-        );
-      })}
-    </group>
+    <mesh geometry={geometry} position={[x, 0, z]} scale={scale} userData={{ noCast: far }}>
+      <meshStandardMaterial color={palette.ink} roughness={1} />
+    </mesh>
   );
+}
+
+/** Where the far trees stand, behind the fence and the captions, between the stations: x, z, scale. */
+const GROVE = [
+  [13, -15, 1.2],
+  [27, -17, 1.4],
+  [45, -14, 1.1],
+  [63, -18, 1.5],
+  [81, -15, 1.2],
+  [102, -17, 1.3],
+  [121, -14.5, 1.2],
+  [146, -17, 1.4],
+] as const;
+
+/** The far trees: each of its own shape, silhouettes in the fog that slide past more slowly than the stations. */
+export function Grove() {
+  return GROVE.map(([x, z, scale], i) => <Tree key={x} x={x} z={z} scale={scale} seed={11 + i * 13} far />);
 }
 
 /** Bands of ground mist that drift along the route, between the stations and the camera. */

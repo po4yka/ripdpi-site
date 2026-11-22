@@ -3,7 +3,7 @@ import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 
-import { usePalette, useSceneTime } from "./kit";
+import { hash, usePalette, useSceneTime } from "./kit";
 
 /** A brick tower, as the wall of the app's Wall and Connect scenes: paper bricks drawn in ink. */
 export function BrickTower({ x, w = 2.2, h = 7.5, d = 2.2 }: { x: number; w?: number; h?: number; d?: number }) {
@@ -19,6 +19,25 @@ export function BrickTower({ x, w = 2.2, h = 7.5, d = 2.2 }: { x: number; w?: nu
     g.lineWidth = 5;
     const rows = 16;
     const rh = 512 / rows;
+    // Each brick has its own tone, and one in nine is chipped: darker at a corner.
+    g.fillStyle = `#${palette.ink.getHexString()}`;
+    for (let r = 0; r < rows; r++) {
+      for (let k = -1; k < 2; k++) {
+        const bx = k * 128 + (r % 2 ? 64 : 0);
+        const n = r * 7 + ((k + 3) % 2);
+        g.globalAlpha = hash(n) * 0.22;
+        g.fillRect(bx, r * rh, 128, rh);
+        if (hash(n + 400) > 0.89) {
+          g.globalAlpha = 0.45;
+          g.beginPath();
+          g.moveTo(bx + 128, r * rh);
+          g.lineTo(bx + 128 - 30 - hash(n + 500) * 30, r * rh);
+          g.lineTo(bx + 128, r * rh + 10 + hash(n + 600) * 14);
+          g.fill();
+        }
+      }
+    }
+    g.globalAlpha = 1;
     for (let r = 0; r <= rows; r++) {
       g.beginPath();
       g.moveTo(0, r * rh);
@@ -37,7 +56,15 @@ export function BrickTower({ x, w = 2.2, h = 7.5, d = 2.2 }: { x: number; w?: nu
     t.anisotropy = 4;
     return t;
   }, [palette]);
-  useEffect(() => () => texture.dispose(), [texture]);
+  // The wire along the top: one coil from end to end.
+  const wire = useMemo(() => {
+    const points = Array.from({ length: 97 }, (_, i) => {
+      const a = (i / 96) * Math.PI * 2 * 7;
+      return new THREE.Vector3(-w / 2 + 0.15 + (i / 96) * (w - 0.3), Math.sin(a) * 0.28, Math.cos(a) * 0.28);
+    });
+    return new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points), 192, 0.035, 5);
+  }, [w]);
+  useEffect(() => () => (texture.dispose(), wire.dispose()), [texture, wire]);
   return (
     <group position={[x, 0, 0]}>
       <mesh position={[0, h / 2, 0]}>
@@ -49,12 +76,9 @@ export function BrickTower({ x, w = 2.2, h = 7.5, d = 2.2 }: { x: number; w?: nu
         <boxGeometry args={[w + 0.3, 0.22, d + 0.3]} />
         <meshStandardMaterial color={palette.stone} roughness={0.9} />
       </mesh>
-      {Array.from({ length: 6 }, (_, i) => (
-        <mesh key={i} position={[-w / 2 + 0.2 + (i * (w - 0.4)) / 5, h + 0.5, 0]} rotation-x={Math.PI / 2}>
-          <torusGeometry args={[0.28, 0.05, 6, 16]} />
-          <meshStandardMaterial color={palette.ink} roughness={0.55} metalness={0.3} />
-        </mesh>
-      ))}
+      <mesh geometry={wire} position={[0, h + 0.5, 0]}>
+        <meshStandardMaterial color={palette.ink} roughness={0.55} metalness={0.3} />
+      </mesh>
     </group>
   );
 }
@@ -72,19 +96,22 @@ export function Globe({ x, scale = 1 }: { x: number; scale?: number }) {
         <sphereGeometry args={[1.1, 32, 20]} />
         <meshStandardMaterial color={palette.paper} roughness={0.7} />
       </mesh>
-      <group ref={lines} position={[0, 2.4, 0]}>
-        {[0, Math.PI / 3, (2 * Math.PI) / 3].map((a) => (
-          <mesh key={a} rotation-y={a}>
-            <torusGeometry args={[1.105, 0.018, 4, 48]} />
-            <meshStandardMaterial color={palette.ink} roughness={0.55} metalness={0.3} />
-          </mesh>
-        ))}
-        {[-0.55, 0, 0.55].map((y) => (
-          <mesh key={y} position={[0, y, 0]} rotation-x={Math.PI / 2}>
-            <torusGeometry args={[Math.sqrt(1.105 ** 2 - y * y), 0.018, 4, 48]} />
-            <meshStandardMaterial color={palette.ink} roughness={0.55} metalness={0.3} />
-          </mesh>
-        ))}
+      {/* The axis leans, as a desk globe's does; the grid turns about it. */}
+      <group position={[0, 2.4, 0]} rotation-z={-0.41}>
+        <group ref={lines}>
+          {Array.from({ length: 6 }, (_, i) => (
+            <mesh key={i} rotation-y={(i * Math.PI) / 6}>
+              <torusGeometry args={[1.105, 0.012, 4, 64]} />
+              <meshStandardMaterial color={palette.ink} roughness={0.55} metalness={0.3} />
+            </mesh>
+          ))}
+          {[-0.85, -0.45, 0, 0.45, 0.85].map((y) => (
+            <mesh key={y} position={[0, y, 0]} rotation-x={Math.PI / 2}>
+              <torusGeometry args={[Math.sqrt(1.105 ** 2 - y * y), 0.012, 4, 64]} />
+              <meshStandardMaterial color={palette.ink} roughness={0.55} metalness={0.3} />
+            </mesh>
+          ))}
+        </group>
       </group>
       <mesh position={[0, 0.65, 0]}>
         <cylinderGeometry args={[0.09, 0.09, 1.3, 8]} />
@@ -111,6 +138,15 @@ export function Phone({ x, h = 3.2, children }: { x: number; h?: number; childre
       <RoundedBox args={[w - 0.2, h - 0.3, 0.02]} radius={0.01} position={[0, h / 2 + 0.05, 0.2]}>
         <meshStandardMaterial color={palette.carve} roughness={0.3} />
       </RoundedBox>
+      {/* The camera in the screen, and the button on the side. */}
+      <mesh position={[0, h - 0.24, 0.215]}>
+        <circleGeometry args={[0.045, 16]} />
+        <meshBasicMaterial color={palette.ink} />
+      </mesh>
+      <mesh position={[w / 2, h * 0.68, 0]}>
+        <boxGeometry args={[0.06, h * 0.13, 0.12]} />
+        <meshStandardMaterial color={palette.ink} roughness={0.55} metalness={0.3} />
+      </mesh>
       <group position={[0, h / 2 + 0.05, 0.22]}>{children}</group>
     </group>
   );
@@ -248,10 +284,23 @@ export function Lantern() {
           <cylinderGeometry args={[0.012, 0.012, 0.28, 4]} />
           <meshStandardMaterial color={palette.ink} />
         </mesh>
-        <mesh position={[0, -0.3, 0]}>
-          <coneGeometry args={[0.26, 0.14, 4]} />
+        <mesh position={[0, -0.2, 0]} rotation-y={Math.PI / 2}>
+          <torusGeometry args={[0.05, 0.014, 6, 16]} />
           <meshStandardMaterial color={palette.ink} roughness={0.55} metalness={0.3} />
         </mesh>
+        {/* The roof, square with the lamp, and the four bars of its cage. */}
+        <mesh position={[0, -0.3, 0]} rotation-y={Math.PI / 4}>
+          <coneGeometry args={[0.29, 0.14, 4]} />
+          <meshStandardMaterial color={palette.ink} roughness={0.55} metalness={0.3} />
+        </mesh>
+        {[-1, 1].flatMap((sx) =>
+          [-1, 1].map((sz) => (
+            <mesh key={`${sx}${sz}`} position={[sx * 0.17, -0.6, sz * 0.17]}>
+              <boxGeometry args={[0.035, 0.5, 0.035]} />
+              <meshStandardMaterial color={palette.ink} roughness={0.55} metalness={0.3} />
+            </mesh>
+          )),
+        )}
         <mesh position={[0, -0.6, 0]}>
           <boxGeometry args={[0.32, 0.46, 0.32]} />
           <meshBasicMaterial color={palette.signalGlow} toneMapped={false} />

@@ -977,7 +977,7 @@ export function NightStation() {
           <meshBasicMaterial color={palette.signalGlow} toneMapped={false} />
         </mesh>
       ))}
-      <Tree x={x0 - 11} z={-2.5} scale={1.1} />
+      <Tree x={x0 - 11} z={-2.5} scale={1.1} seed={23} />
     </group>
   );
 }

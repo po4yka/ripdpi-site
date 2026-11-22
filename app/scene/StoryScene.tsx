@@ -21,7 +21,7 @@ import {
   usePalette,
   useSceneTime,
 } from "./kit";
-import { Cable, Fence, Grass, Ground, Mist, MOON_DIR, Sky } from "./Scenery";
+import { Cable, Fence, Grove, Grass, Ground, Mist, MOON_DIR, Sky } from "./Scenery";
 import { backOff, shotAt } from "./shots";
 import {
   BarrierStation,
@@ -256,6 +256,7 @@ export default function StoryScene({ animate, onReady }: { animate: boolean; onR
             <Ground />
             <Grass />
             <Fence />
+            <Grove />
             <Mist />
             <Cable />
             <Bursts />
